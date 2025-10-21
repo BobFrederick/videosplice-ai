@@ -393,26 +393,32 @@ export function Timeline({
             )
           })}
 
-          {boundaries.map((boundary) => {
+          {boundaries.map((boundary, boundaryIndex) => {
             if (boundary === 0 || boundary === duration) return null
             
             const position = duration > 0 ? (boundary / duration) * 100 : 0
             const isHovered = hoverPosition !== null && findNearestBoundary(hoverPosition, 3) === boundary
             const isDragging = draggingBoundary === boundary
+            
+            const isFirst = boundaryIndex === 0 || boundary === Math.min(...boundaries.filter(b => b !== 0))
+            const isLast = boundaryIndex === boundaries.length - 1 || boundary === Math.max(...boundaries.filter(b => b !== duration))
+            
+            const zIndex = isDragging ? 30 : isFirst ? 25 : isLast ? 25 : 20
 
             return (
               <div
                 key={boundary}
                 className={cn(
-                  'absolute top-0 h-full transition-all group z-20',
-                  isDragging && 'z-30',
-                  isHovered && !isDragging && 'z-20'
+                  'absolute top-0 h-full transition-all group',
                 )}
-                style={{ left: `${position}%` }}
+                style={{ 
+                  left: `${position}%`,
+                  zIndex: zIndex
+                }}
               >
                 <div
                   className={cn(
-                    'absolute inset-0 -left-2 -right-2 z-20',
+                    'absolute inset-0 -left-2 -right-2',
                   )}
                   onMouseDown={(e) => {
                     handleBoundaryMouseDown(boundary, e)
