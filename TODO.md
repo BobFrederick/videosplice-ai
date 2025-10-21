@@ -24,6 +24,11 @@
 - [x] Mock transcript generation
 - [x] Mock segment data
 - [x] Spark SDK type definitions
+- [x] Upload preview component with video player
+- [x] Optional transcript file upload (.txt, .srt, .vtt)
+- [x] Preview confirmation workflow
+- [x] Custom transcript indicator in job cards
+- [x] Feature 1: Video Upload & Intake (COMPLETE)
 
 ## In Progress 🚧
 - [ ] LLM integration for auto-generating segments
@@ -37,8 +42,8 @@
 - [x] Upload progress bar
 - [x] File format validation
 - [x] File size validation
-- [ ] Preview confirmation after upload (using video player)
-- [ ] Optional transcription upload
+- [x] Preview confirmation after upload (using video player)
+- [x] Optional transcription upload
 - [ ] Resume capability for large files (future enhancement)
 
 ### Feature 2: Transcription Generation

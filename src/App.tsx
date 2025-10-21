@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Toaster } from '@/components/ui/sonner'
 import { UploadZone } from '@/components/UploadZone'
+import { UploadPreview } from '@/components/UploadPreview'
 import { JobCard } from '@/components/JobCard'
 import { ProjectView } from '@/components/ProjectView'
 import type { VideoJob, Project } from '@/lib/types'
@@ -18,6 +19,7 @@ function App() {
   const [showUpload, setShowUpload] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
+  const [previewFile, setPreviewFile] = useState<{ file: File; url: string } | null>(null)
 
   const jobsList = Array.isArray(jobs) ? jobs : []
   const projectsList = Array.isArray(projects) ? projects : []
@@ -30,8 +32,43 @@ function App() {
 
     await new Promise(resolve => setTimeout(resolve, 100))
 
-    const jobId = `job-${Date.now()}`
     const videoUrl = URL.createObjectURL(file)
+    
+    setPreviewFile({ file, url: videoUrl })
+    setIsUploading(false)
+    setIsProcessing(false)
+    setUploadProgress(0)
+  }
+
+  const handlePreviewCancel = () => {
+    if (previewFile) {
+      URL.revokeObjectURL(previewFile.url)
+    }
+    setPreviewFile(null)
+    setShowUpload(false)
+  }
+
+  const handlePreviewConfirm = async (file: File, transcriptFile?: File) => {
+    setIsUploading(true)
+    setUploadProgress(0)
+    setIsProcessing(true)
+
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    const jobId = `job-${Date.now()}`
+    const videoUrl = previewFile?.url || URL.createObjectURL(file)
+    
+    let transcriptContent: string | undefined
+    let transcriptFileName: string | undefined
+
+    if (transcriptFile) {
+      transcriptFileName = transcriptFile.name
+      try {
+        transcriptContent = await transcriptFile.text()
+      } catch (error) {
+        toast.error('Failed to read transcript file')
+      }
+    }
     
     const newJob: VideoJob = {
       id: jobId,
@@ -41,6 +78,8 @@ function App() {
       progress: 0,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      hasCustomTranscript: !!transcriptFile,
+      transcriptFileName,
     }
 
     setJobs((currentJobs) => {
@@ -48,6 +87,7 @@ function App() {
       return [newJob, ...existingJobs]
     })
     setIsProcessing(false)
+    setPreviewFile(null)
 
     const progressInterval = setInterval(() => {
       setUploadProgress((prev) => {
@@ -63,14 +103,19 @@ function App() {
       clearInterval(progressInterval)
       setUploadProgress(100)
       
+      const nextStatus = transcriptFile ? 'analyzing' : 'transcribing'
+      const nextProgress = transcriptFile ? 50 : 25
+      
       setJobs((currentJobs) => {
         const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
         return existingJobs.map((job) =>
           job.id === jobId
-            ? { ...job, status: 'transcribing', progress: 25, updatedAt: Date.now() }
+            ? { ...job, status: nextStatus, progress: nextProgress, updatedAt: Date.now() }
             : job
         )
       })
+
+      const processingDelay = transcriptFile ? 2000 : 3000
 
       setTimeout(() => {
         setJobs((currentJobs) => {
@@ -99,7 +144,7 @@ function App() {
             )
           })
 
-          const mockTranscript = `Welcome to this tutorial on video editing. Today we'll cover the basics of cutting and splicing footage.
+          const mockTranscript = transcriptContent || `Welcome to this tutorial on video editing. Today we'll cover the basics of cutting and splicing footage.
 
 First, let's talk about the timeline interface. The timeline is where you'll spend most of your editing time. It displays your video clips in chronological order.
 
@@ -167,11 +212,19 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
             return [newProject, ...existingProjects]
           })
           
-          toast.success('Video processed successfully!', {
-            description: `${file.name} has been segmented into 6 chapters`,
+          const successMessage = transcriptFile 
+            ? `Video processed with custom transcript!`
+            : 'Video processed successfully!'
+          
+          const description = transcriptFile
+            ? `${file.name} has been segmented into 6 chapters using your transcript`
+            : `${file.name} has been segmented into 6 chapters`
+
+          toast.success(successMessage, {
+            description,
           })
         }, 3000)
-      }, 3000)
+      }, processingDelay)
 
       setIsUploading(false)
       setUploadProgress(0)
@@ -294,12 +347,21 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
 
       <main className="container mx-auto px-6 py-8">
         <div className="max-w-6xl mx-auto space-y-6">
-          {showUpload && (
+          {showUpload && !previewFile && (
             <UploadZone
               onUpload={handleUpload}
               isUploading={isUploading}
               uploadProgress={uploadProgress}
               isProcessing={isProcessing}
+            />
+          )}
+
+          {showUpload && previewFile && (
+            <UploadPreview
+              file={previewFile.file}
+              videoUrl={previewFile.url}
+              onConfirm={handlePreviewConfirm}
+              onCancel={handlePreviewCancel}
             />
           )}
 

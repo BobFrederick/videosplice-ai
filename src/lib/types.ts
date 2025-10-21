@@ -10,6 +10,8 @@ export interface VideoJob {
   updatedAt: number
   duration?: number
   transcriptUrl?: string
+  transcriptFileName?: string
+  hasCustomTranscript?: boolean
   segmentCount?: number
   errorMessage?: string
 }

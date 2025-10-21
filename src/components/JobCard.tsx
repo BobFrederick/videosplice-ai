@@ -1,4 +1,4 @@
-import { VideoCamera, CheckCircle, XCircle, Spinner, Clock, Trash } from '@phosphor-icons/react'
+import { VideoCamera, CheckCircle, XCircle, Spinner, Clock, Trash, FileText } from '@phosphor-icons/react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -92,6 +92,15 @@ export function JobCard({ job, onViewDetails, onDelete }: JobCardProps) {
                 <span className="text-xs text-muted-foreground">
                   {formatDate(job.createdAt)}
                 </span>
+                {job.hasCustomTranscript && (
+                  <>
+                    <span className="text-xs text-muted-foreground">•</span>
+                    <span className="text-xs text-accent-foreground flex items-center gap-1">
+                      <FileText size={12} weight="bold" />
+                      Custom transcript
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>
