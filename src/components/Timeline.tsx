@@ -181,7 +181,11 @@ export function Timeline({
   }, [draggingBoundary, onSegmentChange, duration])
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (draggingBoundary !== null) return
+    if (draggingBoundary !== null) {
+      const time = getTimeFromPosition(e.clientX)
+      setHoverPosition(time)
+      return
+    }
     const time = getTimeFromPosition(e.clientX)
     setHoverPosition(time)
   }
@@ -428,9 +432,9 @@ export function Timeline({
           })}
 
           {interiorBoundaries.map((boundary, boundaryIndex) => {
+            const isDraggingThis = draggingBoundary === boundary
             const position = duration > 0 ? (boundary / duration) * 100 : 0
-            const isHovered = hoverPosition !== null && findNearestBoundary(hoverPosition, 2) === boundary
-            const isDragging = draggingBoundary === boundary
+            const isHovered = hoverPosition !== null && findNearestBoundary(hoverPosition, 2) === boundary && !isDraggingThis
 
             return (
               <div
@@ -440,7 +444,7 @@ export function Timeline({
                 )}
                 style={{ 
                   left: `${position}%`,
-                  zIndex: isDragging ? 30 : 20
+                  zIndex: isDraggingThis ? 30 : 20
                 }}
               >
                 <div
@@ -465,7 +469,7 @@ export function Timeline({
                 <div
                   className={cn(
                     'absolute inset-0 border-l-2 border-dashed transition-all pointer-events-none',
-                    isDragging
+                    isDraggingThis
                       ? 'border-primary border-l-[3px]'
                       : isHovered
                       ? 'border-primary border-l-[3px]'
@@ -473,7 +477,7 @@ export function Timeline({
                   )}
                 />
 
-                {(isDragging || isHovered) && (
+                {(isDraggingThis || isHovered) && (
                   <div
                     className={cn(
                       'absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg z-50 pointer-events-none',
