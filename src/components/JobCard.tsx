@@ -82,7 +82,7 @@ export function JobCard({ job, onViewDetails }: JobCardProps) {
               <VideoCamera size={20} weight="duotone" className="text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-sm break-words leading-snug">{job.fileName}</h3>
+              <h3 className="font-medium text-sm truncate">{job.fileName}</h3>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs text-muted-foreground font-mono">
                   {formatFileSize(job.fileSize)}
