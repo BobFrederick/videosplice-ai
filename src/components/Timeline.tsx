@@ -103,8 +103,9 @@ export function Timeline({
   }
 
   const updateBoundary = useCallback((oldBoundaryTime: number, newTime: number) => {
-    const leftSegment = segments.find(s => s.endTime === oldBoundaryTime)
-    const rightSegment = segments.find(s => s.startTime === oldBoundaryTime)
+    const currentSegments = segmentsRef.current
+    const leftSegment = currentSegments.find(s => s.endTime === oldBoundaryTime)
+    const rightSegment = currentSegments.find(s => s.startTime === oldBoundaryTime)
     
     if (!leftSegment || !rightSegment) return
     
@@ -116,7 +117,7 @@ export function Timeline({
       return
     }
 
-    const updatedSegments = segments.map((segment) => {
+    const updatedSegments = currentSegments.map((segment) => {
       if (segment.id === leftSegment.id) {
         return { ...segment, endTime: newTime }
       }
@@ -127,7 +128,7 @@ export function Timeline({
     })
 
     onSegmentChange(updatedSegments)
-  }, [segments, onSegmentChange])
+  }, [onSegmentChange])
 
   useEffect(() => {
     if (draggingBoundary === null) return
