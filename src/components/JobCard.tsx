@@ -77,12 +77,12 @@ export function JobCard({ job, onViewDetails }: JobCardProps) {
     <Card className="transition-all hover:shadow-md">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
-            <div className="p-2 rounded-lg bg-muted">
+          <div className="flex items-start gap-3 flex-1 min-w-0 overflow-hidden">
+            <div className="p-2 rounded-lg bg-muted flex-shrink-0">
               <VideoCamera size={20} weight="duotone" className="text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-sm break-words">{job.fileName}</h3>
+              <h3 className="font-medium text-sm break-words leading-snug">{job.fileName}</h3>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs text-muted-foreground font-mono">
                   {formatFileSize(job.fileSize)}
