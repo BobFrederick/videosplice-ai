@@ -24,6 +24,21 @@ export interface Segment {
   description?: string
 }
 
+export interface ExportedSegment {
+  id: string
+  segmentNumber: number
+  title: string
+  description: string
+  startTime: number
+  endTime: number
+  duration: number
+  fileSize: number
+  thumbnailUrl: string
+  downloadUrl: string
+  fileName: string
+  status: 'processing' | 'completed' | 'failed'
+}
+
 export interface Project {
   id: string
   name: string
@@ -32,4 +47,5 @@ export interface Project {
   segments: Segment[]
   jobId: string
   duration?: number
+  exportedSegments?: ExportedSegment[]
 }

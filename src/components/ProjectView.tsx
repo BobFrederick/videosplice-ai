@@ -9,6 +9,7 @@ import { VideoPlayer } from '@/components/VideoPlayer'
 import { Timeline } from '@/components/Timeline'
 import { SegmentEditor } from '@/components/SegmentEditor'
 import { TranscriptViewer } from '@/components/TranscriptViewer'
+import { ExportView } from '@/components/ExportView'
 import type { Project, Segment } from '@/lib/types'
 import type { LLMSettings } from '@/components/SettingsDialog'
 import { retryWithBackoff, parseErrorMessage } from '@/lib/helpers'
@@ -42,6 +43,7 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
   const [selectedSegmentId, setSelectedSegmentId] = useState<string>()
   const [isGenerating, setIsGenerating] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [showExportView, setShowExportView] = useState(false)
 
   const handleSegmentChange = (segments: Segment[]) => {
     onProjectUpdate({ ...project, segments })
@@ -153,10 +155,20 @@ Format:
 
     setTimeout(() => {
       setIsGenerating(false)
+      setShowExportView(true)
       toast.success(`Generated ${project.segments.length} video segments`, {
         description: 'Files are ready for download',
       })
-    }, 3000)
+    }, 1000)
+  }
+
+  if (showExportView) {
+    return (
+      <ExportView
+        project={project}
+        onClose={() => setShowExportView(false)}
+      />
+    )
   }
 
   return (

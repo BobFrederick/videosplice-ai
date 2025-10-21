@@ -41,6 +41,13 @@
 - [x] Retry button for failed jobs
 - [x] Job card skeleton loading states
 - [x] Improved error messages
+- [x] Export view component
+- [x] Segment thumbnail generation
+- [x] Download individual segments
+- [x] Download all segments functionality
+- [x] Export progress tracking
+- [x] File size and duration display
+- [x] Feature 5: Video Splitting & Export (COMPLETE - mock implementation)
 
 ## In Progress 🚧
 - [ ] Real video file handling with backend
@@ -96,12 +103,18 @@
 
 ### Feature 5: Video Splitting & Export
 - [x] Generate segments UI button
-- [ ] Process video cuts (currently mock)
-- [ ] Generate segment files
-- [ ] Create thumbnails for segments
-- [ ] Provide download links
-- [ ] Batch download as zip
-- [ ] Embed metadata in segments
+- [x] Process video cuts (mock implementation with simulated processing)
+- [x] Generate segment files (mock with metadata)
+- [x] Create thumbnails for segments
+- [x] Provide download links
+- [x] Batch download functionality (download all button)
+- [x] Embed metadata in segments (file naming with segment info)
+- [x] Export view with segment cards
+- [x] Progress tracking during export
+- [x] File size estimates
+- [x] Segment preview thumbnails
+- [ ] Real video splitting with ffmpeg (requires backend)
+- [ ] Actual ZIP file generation for batch download
 
 ### Feature 6: Job Queue & Progress Tracking
 - [x] Job queue UI with status
@@ -148,9 +161,13 @@
 - [x] Job card skeleton loading states
 - [x] Retry buttons for failed jobs
 - [x] Error display in job cards
+- [x] Export view with segment cards
+- [x] Segment thumbnail display
+- [x] Download buttons for segments
+- [x] Export progress indicators
+- [x] Export summary statistics
 
 ## UI Components Still Needed 🎨
-- [ ] Segment cards with thumbnails for export view
 - [ ] Empty state improvements with illustrations
 
 ## Technical Debt & Improvements 🔧
@@ -173,7 +190,8 @@
 3. ✅ Create segment review/editing interface
 4. ✅ Test LLM integration with real transcript
 5. ✅ Add settings page for LLM configuration
-6. Add error handling and retry logic
-7. Implement real video file handling
-8. Add waveform visualization to timeline
-9. Build export/download functionality
+6. ✅ Add error handling and retry logic
+7. ✅ Build export/download functionality
+8. Implement real video file handling with backend
+9. Add waveform visualization to timeline
+10. Add user authentication and project management
