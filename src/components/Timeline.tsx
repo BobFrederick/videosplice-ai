@@ -377,11 +377,12 @@ export function Timeline({
             return (
               <div
                 key={segment.id}
-                className={cn('absolute top-0 h-full z-10', color)}
+                className={cn('absolute top-0 h-full z-10 border-0', color)}
                 style={{ 
                   left: `${left}%`, 
                   width: `${width}%`,
-                  borderRight: 'none'
+                  border: 'none',
+                  outline: 'none'
                 }}
               >
                 <div className="px-3 py-2 h-full flex flex-col justify-center">
