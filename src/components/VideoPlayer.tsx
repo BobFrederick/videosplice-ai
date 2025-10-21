@@ -78,15 +78,21 @@ export function VideoPlayer({
     }
   }, [src, onTimeUpdate, onDurationChange])
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (!videoRef.current) return
 
-    if (isPlaying) {
-      videoRef.current.pause()
-    } else {
-      videoRef.current.play()
+    try {
+      if (isPlaying) {
+        videoRef.current.pause()
+        setIsPlaying(false)
+      } else {
+        await videoRef.current.play()
+        setIsPlaying(true)
+      }
+    } catch (error) {
+      console.error('Error toggling video playback:', error)
+      setIsPlaying(false)
     }
-    setIsPlaying(!isPlaying)
   }
 
   const toggleMute = () => {
