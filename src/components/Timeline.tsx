@@ -307,6 +307,12 @@ export function Timeline({
     }
   }
 
+  const handlePlayheadAddClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    addBoundary(currentTime)
+  }
+
   const playheadPosition = duration > 0 ? (currentTime / duration) * 100 : 0
 
   const generateTimeGrid = () => {
@@ -456,11 +462,17 @@ export function Timeline({
           )}
 
           <div
-            className="absolute top-0 h-full w-0.5 bg-primary pointer-events-none z-40"
+            className="absolute top-0 h-full w-0.5 bg-primary z-40"
             style={{ left: `${playheadPosition}%` }}
           >
-            <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-primary rounded-full shadow-lg" />
-            <div className="absolute top-0 left-0.5 w-px h-full bg-primary/50" />
+            <button
+              onClick={handlePlayheadAddClick}
+              className="absolute -top-2 -left-2.5 w-5 h-5 bg-primary rounded-full shadow-lg flex items-center justify-center hover:bg-primary/90 hover:scale-110 transition-transform cursor-pointer z-50"
+              title="Add segment at current position"
+            >
+              <Plus size={14} weight="bold" className="text-primary-foreground" />
+            </button>
+            <div className="absolute top-0 left-0.5 w-px h-full bg-primary/50 pointer-events-none" />
           </div>
         </div>
       </Card>
