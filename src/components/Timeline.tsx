@@ -69,12 +69,13 @@ export function Timeline({
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const getTimeFromPosition = (clientX: number): number => {
+  const getTimeFromPosition = (clientX: number, clamp: boolean = true): number => {
     if (!timelineRef.current) return 0
     const rect = timelineRef.current.getBoundingClientRect()
     const x = clientX - rect.left
-    const percentage = Math.max(0, Math.min(1, x / rect.width))
-    return percentage * duration
+    const percentage = clamp ? Math.max(0, Math.min(1, x / rect.width)) : x / rect.width
+    const time = percentage * duration
+    return clamp ? time : Math.max(0, Math.min(duration, time))
   }
 
   const getBoundaries = () => {
@@ -109,20 +110,19 @@ export function Timeline({
     
     if (!leftSegment || !rightSegment) return
     
-    if (newTime <= leftSegment.startTime + MIN_SEGMENT_DURATION) {
-      return
-    }
+    const clampedTime = Math.max(
+      leftSegment.startTime + MIN_SEGMENT_DURATION,
+      Math.min(rightSegment.endTime - MIN_SEGMENT_DURATION, newTime)
+    )
     
-    if (newTime >= rightSegment.endTime - MIN_SEGMENT_DURATION) {
-      return
-    }
+    if (Math.abs(clampedTime - oldBoundaryTime) < 0.1) return
 
     const updatedSegments = currentSegments.map((segment) => {
       if (segment.id === leftSegment.id) {
-        return { ...segment, endTime: newTime }
+        return { ...segment, endTime: clampedTime }
       }
       if (segment.id === rightSegment.id) {
-        return { ...segment, startTime: newTime }
+        return { ...segment, startTime: clampedTime }
       }
       return segment
     })
@@ -134,7 +134,8 @@ export function Timeline({
     if (draggingBoundary === null) return
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
-      const time = getTimeFromPosition(e.clientX)
+      e.preventDefault()
+      const time = getTimeFromPosition(e.clientX, false)
       updateBoundary(draggingBoundary, time)
     }
 
@@ -144,7 +145,7 @@ export function Timeline({
       document.body.style.userSelect = ''
     }
 
-    document.addEventListener('mousemove', handleGlobalMouseMove)
+    document.addEventListener('mousemove', handleGlobalMouseMove, { passive: false })
     document.addEventListener('mouseup', handleGlobalMouseUp)
 
     return () => {
