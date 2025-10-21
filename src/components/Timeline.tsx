@@ -107,11 +107,8 @@ export function Timeline({
     document.body.style.cursor = 'ew-resize'
     document.body.style.userSelect = 'none'
 
-    const handleGlobalMouseMove = (e: MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      
-      if (!timelineRef.current) return
+      const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!timelineRef.current || draggingBoundary === null) return
       
       const time = getTimeFromPosition(e.clientX)
       const leftSegment = segments.find(s => s.endTime === draggingBoundary)
@@ -137,9 +134,7 @@ export function Timeline({
       onSegmentChange(updatedSegments)
     }
 
-    const handleGlobalMouseUp = (e: MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
+    const handleGlobalMouseUp = () => {
       setDraggingBoundary(null)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
