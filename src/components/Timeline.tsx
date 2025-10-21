@@ -261,7 +261,7 @@ export function Timeline({
       <Card
         ref={timelineRef}
         className={cn(
-          'relative h-32 overflow-visible pt-6',
+          'relative h-32 overflow-visible pt-6 p-0',
           isCtrlPressed ? 'cursor-not-allowed' : 'cursor-crosshair'
         )}
         onClick={handleTimelineClick}
@@ -269,7 +269,7 @@ export function Timeline({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
       >
-        <div className="absolute inset-0 bg-muted/20">
+        <div className="absolute inset-0 bg-muted/20 overflow-hidden">
           {timeGrid.map((time) => {
             const position = duration > 0 ? (time / duration) * 100 : 0
             return (
