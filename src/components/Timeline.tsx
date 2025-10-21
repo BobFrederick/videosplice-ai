@@ -377,7 +377,7 @@ export function Timeline({
             return (
               <div
                 key={segment.id}
-                className={cn('absolute top-0 h-full border-r-2 z-10', color)}
+                className={cn('absolute top-0 h-full z-10', color)}
                 style={{ left: `${left}%`, width: `${width}%` }}
               >
                 <div className="px-3 py-2 h-full flex flex-col justify-center">
@@ -409,7 +409,7 @@ export function Timeline({
               >
                 <div
                   className={cn(
-                    'absolute inset-0 -left-6 -right-6 z-20',
+                    'absolute inset-0 -left-2 -right-2 z-20',
                   )}
                   onMouseDown={(e) => {
                     handleBoundaryMouseDown(boundary, e)
