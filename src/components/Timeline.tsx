@@ -246,26 +246,28 @@ export function Timeline({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-muted/40 to-muted/20">
+        <div className="absolute inset-0 bg-muted/20">
           {segments.map((segment, index) => {
             const left = duration > 0 ? (segment.startTime / duration) * 100 : 0
             const width = duration > 0 ? ((segment.endTime - segment.startTime) / duration) * 100 : 0
             
             const colors = [
-              'bg-primary/10',
-              'bg-accent/10',
-              'bg-chart-1/10',
+              'bg-primary/20 border-primary/40',
+              'bg-accent/20 border-accent/40',
+              'bg-chart-1/20 border-chart-1/40',
+              'bg-chart-2/20 border-chart-2/40',
+              'bg-chart-3/20 border-chart-3/40',
             ]
             const color = colors[index % colors.length]
 
             return (
               <div
                 key={segment.id}
-                className={cn('absolute top-0 h-full', color)}
+                className={cn('absolute top-0 h-full border-r-2 z-10', color)}
                 style={{ left: `${left}%`, width: `${width}%` }}
               >
                 <div className="px-3 py-2 h-full flex flex-col justify-center">
-                  <p className="text-sm font-medium truncate">{segment.title}</p>
+                  <p className="text-sm font-medium truncate text-foreground">{segment.title}</p>
                   <p className="text-xs text-muted-foreground font-mono">
                     {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
                   </p>
@@ -285,7 +287,7 @@ export function Timeline({
               <div
                 key={boundary}
                 className={cn(
-                  'absolute top-0 h-full w-1 transition-all group',
+                  'absolute top-0 h-full w-1 transition-all group z-20',
                   isDragging && 'z-30',
                   isHovered && !isDragging && 'z-20'
                 )}
@@ -293,14 +295,14 @@ export function Timeline({
               >
                 <div
                   className={cn(
-                    'absolute inset-0 border-l-2 border-dashed transition-all',
+                    'absolute inset-0 border-l-2 border-dashed transition-all bg-background/50',
                     isDragging
                       ? 'border-primary w-2 -ml-1'
                       : isHovered
                       ? isCtrlPressed
                         ? 'border-destructive w-2 -ml-1'
                         : 'border-primary w-2 -ml-1'
-                      : 'border-border w-1'
+                      : 'border-foreground/30 w-1'
                   )}
                   onMouseDown={(e) => {
                     if (!isCtrlPressed && boundary !== duration) {
@@ -315,7 +317,7 @@ export function Timeline({
                 {(isHovered || isDragging) && (
                   <div
                     className={cn(
-                      'absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg',
+                      'absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg z-50',
                       isCtrlPressed
                         ? 'bg-destructive text-destructive-foreground'
                         : 'bg-primary text-primary-foreground'
