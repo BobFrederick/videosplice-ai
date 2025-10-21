@@ -200,12 +200,6 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
     setProjects((currentProjects) =>
       (currentProjects ?? []).filter((p) => p.id !== projectId)
     )
-    const project = projectsList.find((p) => p.id === projectId)
-    if (project) {
-      setJobs((currentJobs) =>
-        (currentJobs ?? []).filter((j) => j.id !== project.jobId)
-      )
-    }
   }
 
   const handleJobDelete = (jobId: string) => {
