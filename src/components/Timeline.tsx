@@ -112,55 +112,70 @@ export function Timeline({
     document.body.style.cursor = 'ew-resize'
     document.body.style.userSelect = 'none'
 
+    let animationFrameId: number | null = null
+
     const handleGlobalMouseMove = (e: MouseEvent) => {
       e.preventDefault()
-      e.stopPropagation()
       
-      if (!timelineRef.current || draggingBoundary === null) return
-      
-      const rect = timelineRef.current.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const percentage = Math.max(0, Math.min(1, x / rect.width))
-      const time = percentage * duration
-      
-      const currentSegments = segmentsRef.current
-      const leftSegment = currentSegments.find(s => s.endTime === draggingBoundary)
-      const rightSegment = currentSegments.find(s => s.startTime === draggingBoundary)
-      
-      if (!leftSegment || !rightSegment) return
-      
-      const minTime = leftSegment.startTime + MIN_SEGMENT_DURATION
-      const maxTime = rightSegment.endTime - MIN_SEGMENT_DURATION
-      
-      const clampedTime = Math.max(minTime, Math.min(maxTime, time))
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
+      }
 
-      const updatedSegments = currentSegments.map((segment) => {
-        if (segment.id === leftSegment.id) {
-          return { ...segment, endTime: clampedTime }
-        }
-        if (segment.id === rightSegment.id) {
-          return { ...segment, startTime: clampedTime }
-        }
-        return segment
+      animationFrameId = requestAnimationFrame(() => {
+        if (!timelineRef.current) return
+        
+        const rect = timelineRef.current.getBoundingClientRect()
+        const x = e.clientX - rect.left
+        const percentage = Math.max(0, Math.min(1, x / rect.width))
+        const time = percentage * duration
+        
+        const currentSegments = segmentsRef.current
+        const leftSegment = currentSegments.find(s => Math.abs(s.endTime - draggingBoundary) < 0.01)
+        const rightSegment = currentSegments.find(s => Math.abs(s.startTime - draggingBoundary) < 0.01)
+        
+        if (!leftSegment || !rightSegment) return
+        
+        const minTime = leftSegment.startTime + MIN_SEGMENT_DURATION
+        const maxTime = rightSegment.endTime - MIN_SEGMENT_DURATION
+        
+        const clampedTime = Math.max(minTime, Math.min(maxTime, time))
+
+        const updatedSegments = currentSegments.map((segment) => {
+          if (segment.id === leftSegment.id) {
+            return { ...segment, endTime: clampedTime }
+          }
+          if (segment.id === rightSegment.id) {
+            return { ...segment, startTime: clampedTime }
+          }
+          return segment
+        })
+
+        onSegmentChange(updatedSegments)
+        animationFrameId = null
       })
-
-      onSegmentChange(updatedSegments)
     }
 
     const handleGlobalMouseUp = (e: MouseEvent) => {
       e.preventDefault()
-      e.stopPropagation()
+      
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
+      }
+      
       setDraggingBoundary(null)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
 
-    window.addEventListener('mousemove', handleGlobalMouseMove, true)
-    window.addEventListener('mouseup', handleGlobalMouseUp, true)
+    document.addEventListener('mousemove', handleGlobalMouseMove, { capture: true, passive: false })
+    document.addEventListener('mouseup', handleGlobalMouseUp, { capture: true, passive: false })
 
     return () => {
-      window.removeEventListener('mousemove', handleGlobalMouseMove, true)
-      window.removeEventListener('mouseup', handleGlobalMouseUp, true)
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
+      }
+      document.removeEventListener('mousemove', handleGlobalMouseMove, { capture: true } as EventListenerOptions)
+      document.removeEventListener('mouseup', handleGlobalMouseUp, { capture: true } as EventListenerOptions)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
