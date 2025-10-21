@@ -97,23 +97,7 @@ export function Timeline({
     return null
   }
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const time = getTimeFromPosition(e.clientX)
-    setHoverPosition(time)
-    
-    if (draggingBoundary !== null) {
-      updateBoundary(draggingBoundary, time)
-    }
-  }
-
-  const handleMouseLeave = () => {
-    setHoverPosition(null)
-    if (draggingBoundary !== null) {
-      setDraggingBoundary(null)
-    }
-  }
-
-  const updateBoundary = (oldBoundaryTime: number, newTime: number) => {
+  const updateBoundary = useCallback((oldBoundaryTime: number, newTime: number) => {
     const leftSegment = segments.find(s => s.endTime === oldBoundaryTime)
     const rightSegment = segments.find(s => s.startTime === oldBoundaryTime)
     
@@ -138,6 +122,39 @@ export function Timeline({
     })
 
     onSegmentChange(updatedSegments)
+  }, [segments, onSegmentChange])
+
+  useEffect(() => {
+    if (draggingBoundary === null) return
+
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!timelineRef.current) return
+      const time = getTimeFromPosition(e.clientX)
+      updateBoundary(draggingBoundary, time)
+    }
+
+    const handleGlobalMouseUp = () => {
+      setDraggingBoundary(null)
+    }
+
+    document.addEventListener('mousemove', handleGlobalMouseMove)
+    document.addEventListener('mouseup', handleGlobalMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove)
+      document.removeEventListener('mouseup', handleGlobalMouseUp)
+    }
+  }, [draggingBoundary, updateBoundary])
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (draggingBoundary !== null) return
+    const time = getTimeFromPosition(e.clientX)
+    setHoverPosition(time)
+  }
+
+  const handleMouseLeave = () => {
+    if (draggingBoundary !== null) return
+    setHoverPosition(null)
   }
 
   const handleBoundaryMouseDown = (boundary: number, e: React.MouseEvent) => {
@@ -151,11 +168,9 @@ export function Timeline({
     setDraggingBoundary(boundary)
   }
 
-  const handleMouseUp = () => {
-    setDraggingBoundary(null)
-  }
-
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (draggingBoundary !== null) return
+    
     const time = getTimeFromPosition(e.clientX)
     const nearestBoundary = findNearestBoundary(time, 3)
 
@@ -322,7 +337,6 @@ export function Timeline({
         )}
         onClick={handleTimelineClick}
         onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         style={{
           userSelect: 'none',
