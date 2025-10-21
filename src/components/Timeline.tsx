@@ -28,7 +28,7 @@ export function Timeline({
   const [isCtrlPressed, setIsCtrlPressed] = useState(false)
   const [originalSegments] = useState<Segment[]>(segments)
   
-  const MIN_SEGMENT_DURATION = 5
+  const MIN_SEGMENT_DURATION = 10
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -103,26 +103,23 @@ export function Timeline({
     
     if (!leftSegment || !rightSegment) return
     
-    if (newTime <= leftSegment.startTime + MIN_SEGMENT_DURATION) {
-      return
-    }
+    const minTime = leftSegment.startTime + MIN_SEGMENT_DURATION
+    const maxTime = rightSegment.endTime - MIN_SEGMENT_DURATION
     
-    if (newTime >= rightSegment.endTime - MIN_SEGMENT_DURATION) {
-      return
-    }
+    const clampedTime = Math.max(minTime, Math.min(maxTime, newTime))
 
     const updatedSegments = segments.map((segment) => {
       if (segment.id === leftSegment.id) {
-        return { ...segment, endTime: newTime }
+        return { ...segment, endTime: clampedTime }
       }
       if (segment.id === rightSegment.id) {
-        return { ...segment, startTime: newTime }
+        return { ...segment, startTime: clampedTime }
       }
       return segment
     })
 
     onSegmentChange(updatedSegments)
-  }, [segments, onSegmentChange])
+  }, [segments, onSegmentChange, MIN_SEGMENT_DURATION])
 
   useEffect(() => {
     if (draggingBoundary === null) return
