@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 interface VideoPlayerProps {
   src?: string
   currentTime?: number
+  duration?: number
   onTimeUpdate?: (time: number) => void
   onDurationChange?: (duration: number) => void
   className?: string
@@ -15,6 +16,7 @@ interface VideoPlayerProps {
 export function VideoPlayer({ 
   src, 
   currentTime, 
+  duration: initialDuration,
   onTimeUpdate, 
   onDurationChange,
   className 
@@ -23,8 +25,14 @@ export function VideoPlayer({
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [volume, setVolume] = useState(100)
-  const [duration, setDuration] = useState(0)
+  const [duration, setDuration] = useState(initialDuration || 0)
   const [playbackTime, setPlaybackTime] = useState(0)
+
+  useEffect(() => {
+    if (initialDuration && duration === 0) {
+      setDuration(initialDuration)
+    }
+  }, [initialDuration, duration])
 
   useEffect(() => {
     if (videoRef.current && currentTime !== undefined) {
@@ -76,7 +84,12 @@ export function VideoPlayer({
   }
 
   const handleSeek = (value: number[]) => {
-    if (!videoRef.current) return
+    if (!videoRef.current) {
+      const time = value[0]
+      setPlaybackTime(time)
+      onTimeUpdate?.(time)
+      return
+    }
     const time = value[0]
     videoRef.current.currentTime = time
     setPlaybackTime(time)
