@@ -40,9 +40,13 @@ export function VideoPlayer({
     const video = videoRef.current
     if (!video || !src) return
 
+    setIsPlaying(false)
+    setProgress(0)
+
     const handleLoadedMetadata = () => {
-      setDuration(video.duration)
-      onDurationChange?.(video.duration)
+      const validDuration = isFinite(video.duration) ? video.duration : 0
+      setDuration(validDuration)
+      onDurationChange?.(validDuration)
     }
 
     const handleTimeUpdate = () => {
@@ -55,39 +59,67 @@ export function VideoPlayer({
       setIsPlaying(false)
     }
 
-    const handleLoadStart = () => {
-      video.load()
+    const handlePlay = () => {
+      setIsPlaying(true)
+    }
+
+    const handlePause = () => {
+      setIsPlaying(false)
+    }
+
+    const handleCanPlay = () => {
+      if (video.readyState >= 2) {
+        const validDuration = isFinite(video.duration) ? video.duration : 0
+        setDuration(validDuration)
+        onDurationChange?.(validDuration)
+      }
     }
 
     video.addEventListener('loadedmetadata', handleLoadedMetadata)
     video.addEventListener('timeupdate', handleTimeUpdate)
     video.addEventListener('ended', handleEnded)
-    video.addEventListener('loadstart', handleLoadStart)
+    video.addEventListener('play', handlePlay)
+    video.addEventListener('pause', handlePause)
+    video.addEventListener('canplay', handleCanPlay)
+
+    video.load()
 
     if (video.readyState >= 1) {
       handleLoadedMetadata()
-    } else {
-      video.load()
     }
 
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata)
       video.removeEventListener('timeupdate', handleTimeUpdate)
       video.removeEventListener('ended', handleEnded)
-      video.removeEventListener('loadstart', handleLoadStart)
+      video.removeEventListener('play', handlePlay)
+      video.removeEventListener('pause', handlePause)
+      video.removeEventListener('canplay', handleCanPlay)
     }
   }, [src, onTimeUpdate, onDurationChange])
 
   const togglePlay = async () => {
-    if (!videoRef.current) return
+    const video = videoRef.current
+    if (!video) return
 
     try {
       if (isPlaying) {
-        videoRef.current.pause()
-        setIsPlaying(false)
+        video.pause()
       } else {
-        await videoRef.current.play()
-        setIsPlaying(true)
+        if (video.readyState < 2) {
+          video.load()
+          await new Promise((resolve) => {
+            const handleCanPlay = () => {
+              video.removeEventListener('canplay', handleCanPlay)
+              resolve(undefined)
+            }
+            video.addEventListener('canplay', handleCanPlay)
+          })
+        }
+        const playPromise = video.play()
+        if (playPromise !== undefined) {
+          await playPromise
+        }
       }
     } catch (error) {
       console.error('Error toggling video playback:', error)
@@ -136,8 +168,9 @@ export function VideoPlayer({
             ref={videoRef}
             src={src}
             className="w-full h-full object-contain"
-            preload="metadata"
+            preload="auto"
             playsInline
+            crossOrigin="anonymous"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">No video loaded</div>
