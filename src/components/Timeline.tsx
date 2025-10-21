@@ -357,10 +357,10 @@ export function Timeline({
         </div>
       </div>
 
-      <Card className="p-0 overflow-visible pb-6">
+      <Card className="p-0 overflow-visible">
         <div
           ref={timelineRef}
-          className="relative h-24 bg-muted/30 cursor-pointer overflow-hidden"
+          className="relative h-24 bg-muted/30 cursor-pointer overflow-hidden mb-6"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onClick={handleTimelineClick}
