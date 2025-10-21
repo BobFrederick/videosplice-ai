@@ -22,4 +22,28 @@ export default defineConfig({
       '@': resolve(projectRoot, 'src')
     }
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'ui-radix': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-select',
+            '@radix-ui/react-slider',
+            '@radix-ui/react-progress',
+            '@radix-ui/react-scroll-area',
+          ],
+          'ui-forms': [
+            'react-hook-form',
+            '@hookform/resolvers',
+            'zod',
+          ],
+          'icons': ['@phosphor-icons/react'],
+        }
+      }
+    },
+    chunkSizeWarningLimit: 600,
+  }
 });

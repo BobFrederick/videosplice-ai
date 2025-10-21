@@ -8,8 +8,15 @@
         "kill": "fuser -k 5000/tcp",
         "build": "tsc -b --noCheck && vite build",
         "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "type-check": "tsc --noEmit",
         "optimize": "vite optimize",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "clean": "rm -rf dist",
+        "clean:all": "rm -rf dist node_modules",
+        "fresh-install": "npm run clean:all && npm install",
+        "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
+        "check": "npm run type-check && npm run lint"
     },
     "dependencies": {
         "@github/spark": "^0.39.0",
