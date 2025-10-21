@@ -83,7 +83,7 @@ export function ExportView({ project, onClose }: ExportViewProps) {
 
   const sanitizeFilename = (name: string): string => {
     return name
-      .replace(/[^a-z0-9_\-\.]/gi, '_')
+      .replace(/[^a-z0-9_\-.]/gi, '_')
       .replace(/_+/g, '_')
       .replace(/^_|_$/g, '')
   }
