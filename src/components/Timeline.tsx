@@ -106,20 +106,26 @@ export function Timeline({
   }
 
   const updateBoundary = (segmentIds: string[], newTime: number) => {
-    const boundaries = getBoundaries()
+    if (segmentIds.length === 0) return
     
-    const leftSegment = segments.find(s => segmentIds.includes(s.id) && segments.some(other => other.startTime === s.endTime))
-    const rightSegment = segments.find(s => segmentIds.includes(s.id) && segments.some(other => other.endTime === s.startTime))
+    const affectedSegments = segments.filter(s => segmentIds.includes(s.id))
+    if (affectedSegments.length === 0) return
+    
+    const leftSegment = affectedSegments.find(s => s.endTime === draggingBoundary?.originalTime)
+    const rightSegment = affectedSegments.find(s => s.startTime === draggingBoundary?.originalTime)
     
     if (!leftSegment && !rightSegment) return
     
-    const currentBoundaryTime = leftSegment?.endTime ?? rightSegment?.startTime ?? 0
-    const index = boundaries.indexOf(currentBoundaryTime)
+    const currentBoundaryTime = draggingBoundary?.originalTime ?? 0
     
-    if (index === -1) return
+    const boundaries = getBoundaries()
+    const sortedBoundaries = [...boundaries].sort((a, b) => a - b)
+    const boundaryIndex = sortedBoundaries.indexOf(currentBoundaryTime)
     
-    const prevBoundary = boundaries[index - 1] ?? 0
-    const nextBoundary = boundaries[index + 1] ?? duration
+    if (boundaryIndex === -1) return
+    
+    const prevBoundary = sortedBoundaries[boundaryIndex - 1] ?? 0
+    const nextBoundary = sortedBoundaries[boundaryIndex + 1] ?? duration
     
     const clampedTime = Math.max(
       prevBoundary + MIN_SEGMENT_DURATION,
@@ -127,13 +133,11 @@ export function Timeline({
     )
 
     const updatedSegments = segments.map((segment) => {
-      if (segmentIds.includes(segment.id)) {
-        if (segment.endTime === currentBoundaryTime) {
-          return { ...segment, endTime: clampedTime }
-        }
-        if (segment.startTime === currentBoundaryTime) {
-          return { ...segment, startTime: clampedTime }
-        }
+      if (leftSegment && segment.id === leftSegment.id) {
+        return { ...segment, endTime: clampedTime }
+      }
+      if (rightSegment && segment.id === rightSegment.id) {
+        return { ...segment, startTime: clampedTime }
       }
       return segment
     })
@@ -143,6 +147,10 @@ export function Timeline({
 
   const handleBoundaryMouseDown = (boundary: number, e: React.MouseEvent) => {
     e.stopPropagation()
+    
+    if (boundary === 0 || boundary === duration) {
+      return
+    }
     
     const affectedSegments = segments.filter(
       s => s.startTime === boundary || s.endTime === boundary
@@ -330,7 +338,7 @@ export function Timeline({
           })}
 
           {boundaries.map((boundary) => {
-            if (boundary === 0) return null
+            if (boundary === 0 || boundary === duration) return null
             
             const position = duration > 0 ? (boundary / duration) * 100 : 0
             const isHovered = hoverPosition !== null && findNearestBoundary(hoverPosition, 3) === boundary
@@ -358,7 +366,7 @@ export function Timeline({
                       : 'border-foreground/30'
                   )}
                   onMouseDown={(e) => {
-                    if (!isCtrlPressed && boundary !== duration) {
+                    if (!isCtrlPressed) {
                       handleBoundaryMouseDown(boundary, e)
                     }
                   }}
