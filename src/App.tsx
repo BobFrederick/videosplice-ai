@@ -208,6 +208,20 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
     }
   }
 
+  const handleJobDelete = (jobId: string) => {
+    const project = projectsList.find((p) => p.jobId === jobId)
+    if (project) {
+      handleProjectDelete(project.id)
+    } else {
+      setJobs((currentJobs) =>
+        (currentJobs ?? []).filter((j) => j.id !== jobId)
+      )
+    }
+    toast.success('Project deleted', {
+      description: 'The project and its data have been removed',
+    })
+  }
+
   if (currentProject) {
     return (
       <ProjectView
@@ -293,6 +307,7 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
                       key={job.id} 
                       job={job} 
                       onViewDetails={handleViewDetails}
+                      onDelete={handleJobDelete}
                     />
                   ))}
                 </div>

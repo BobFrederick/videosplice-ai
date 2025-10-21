@@ -1,4 +1,4 @@
-import { VideoCamera, CheckCircle, XCircle, Spinner, Clock } from '@phosphor-icons/react'
+import { VideoCamera, CheckCircle, XCircle, Spinner, Clock, Trash } from '@phosphor-icons/react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 interface JobCardProps {
   job: VideoJob
   onViewDetails?: (jobId: string) => void
+  onDelete?: (jobId: string) => void
 }
 
 const statusConfig = {
@@ -68,7 +69,7 @@ function formatDate(timestamp: number): string {
   return date.toLocaleDateString()
 }
 
-export function JobCard({ job, onViewDetails }: JobCardProps) {
+export function JobCard({ job, onViewDetails, onDelete }: JobCardProps) {
   const config = statusConfig[job.status]
   const Icon = config.icon
   const isProcessing = ['uploading', 'transcribing', 'analyzing', 'segmenting'].includes(job.status)
@@ -118,7 +119,7 @@ export function JobCard({ job, onViewDetails }: JobCardProps) {
         )}
 
         {job.status === 'completed' && (
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               {job.segmentCount && (
                 <span>{job.segmentCount} segments</span>
@@ -127,17 +128,29 @@ export function JobCard({ job, onViewDetails }: JobCardProps) {
                 <span>{Math.floor(job.duration / 60)}:{(job.duration % 60).toString().padStart(2, '0')}</span>
               )}
             </div>
-            {onViewDetails ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onViewDetails(job.id)}
-              >
-                View Details
-              </Button>
-            ) : (
-              <span className="text-xs text-muted-foreground italic">No project data</span>
-            )}
+            <div className="flex items-center gap-2">
+              {onViewDetails ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onViewDetails(job.id)}
+                >
+                  View Details
+                </Button>
+              ) : (
+                <span className="text-xs text-muted-foreground italic">No project data</span>
+              )}
+              {onDelete && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onDelete(job.id)}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash size={16} weight="bold" />
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </CardContent>
