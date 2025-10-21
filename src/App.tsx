@@ -288,16 +288,13 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
-                  {completedJobs.map((job) => {
-                    const hasProject = projectsList.some((p) => p.jobId === job.id)
-                    return (
-                      <JobCard 
-                        key={job.id} 
-                        job={job} 
-                        onViewDetails={hasProject ? handleViewDetails : undefined}
-                      />
-                    )
-                  })}
+                  {completedJobs.map((job) => (
+                    <JobCard 
+                      key={job.id} 
+                      job={job} 
+                      onViewDetails={handleViewDetails}
+                    />
+                  ))}
                 </div>
               )}
             </TabsContent>
