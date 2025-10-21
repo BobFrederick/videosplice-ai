@@ -127,7 +127,7 @@ export function JobCard({ job, onViewDetails }: JobCardProps) {
                 <span>{Math.floor(job.duration / 60)}:{(job.duration % 60).toString().padStart(2, '0')}</span>
               )}
             </div>
-            {onViewDetails && (
+            {onViewDetails ? (
               <Button
                 size="sm"
                 variant="outline"
@@ -135,6 +135,8 @@ export function JobCard({ job, onViewDetails }: JobCardProps) {
               >
                 View Details
               </Button>
+            ) : (
+              <span className="text-xs text-muted-foreground italic">No project data</span>
             )}
           </div>
         )}
