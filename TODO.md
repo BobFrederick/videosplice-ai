@@ -15,9 +15,19 @@
 - [x] Toast notifications for completion
 - [x] Data persistence with useKV
 - [x] Responsive grid layout for job cards
+- [x] Video player component with custom controls
+- [x] Timeline visualization component
+- [x] Segment editor component with drag-and-drop
+- [x] Project view interface
+- [x] Project data persistence
+- [x] View details button for completed jobs
+- [x] Mock transcript generation
+- [x] Mock segment data
+- [x] Spark SDK type definitions
 
 ## In Progress 🚧
-- [ ] None currently
+- [ ] LLM integration for auto-generating segments
+- [ ] Real video file handling
 
 ## To Do - Essential Features 📋
 
@@ -27,41 +37,43 @@
 - [x] Upload progress bar
 - [x] File format validation
 - [x] File size validation
-- [ ] Preview confirmation after upload
+- [ ] Preview confirmation after upload (using video player)
 - [ ] Optional transcription upload
 - [ ] Resume capability for large files (future enhancement)
 
 ### Feature 2: Transcription Generation
-- [ ] Extract audio track from video
+- [ ] Extract audio track from video (requires backend)
 - [ ] Integrate Whisper API or cloud speech-to-text
 - [ ] Generate timestamped transcript
-- [ ] Display transcript in UI
+- [x] Display transcript in UI
 - [ ] Support transcript file upload (.srt, .vtt, txt)
 - [ ] Editable transcript before segmentation
 - [ ] Language detection/selection
 
 ### Feature 3: AI-Powered Chapter Detection
-- [ ] Send transcript to LLM (using spark.llm)
-- [ ] Identify topic boundaries
-- [ ] Generate chapter titles
-- [ ] Propose timestamp ranges
-- [ ] Display AI suggestions to user
+- [x] LLM integration UI (Auto-Generate Segments button)
+- [x] Send transcript to LLM using spark.llm
+- [x] Parse LLM response for segments
+- [x] Display AI suggestions to user
+- [ ] Test with real LLM (currently has mock implementation)
 - [ ] Allow regeneration with different prompts
+- [ ] Confidence scores for segments
 
 ### Feature 4: Segment Review & Editing
-- [ ] Video player component
-- [ ] Timeline visualization component
-- [ ] Display proposed segments on timeline
-- [ ] Play video at boundary points
-- [ ] Drag to adjust segment boundaries
-- [ ] Edit segment titles/descriptions
-- [ ] Add new segments manually
-- [ ] Remove segments
+- [x] Video player component
+- [x] Timeline visualization component
+- [x] Display proposed segments on timeline
+- [x] Play video at boundary points (seek on timeline click)
+- [x] Drag to adjust segment boundaries
+- [x] Edit segment titles/descriptions
+- [x] Add new segments manually
+- [x] Remove segments
 - [ ] Auto-save drafts
-- [ ] Show duration and file size estimates
+- [x] Show duration for each segment
+- [ ] Show file size estimates
 
 ### Feature 5: Video Splitting & Export
-- [ ] Approve segment structure UI
+- [x] Generate segments UI button
 - [ ] Process video cuts (currently mock)
 - [ ] Generate segment files
 - [ ] Create thumbnails for segments
@@ -96,20 +108,24 @@
 - [ ] Quota management UI
 - [ ] Activity logging
 
-## UI Components Needed 🎨
+## UI Components Completed ✓
 - [x] Header with branding
 - [x] Upload zone with states (default, drag-over, uploading, error, success)
 - [x] Job cards with status badges
 - [x] Progress bars
 - [x] Tabs for job filtering
-- [ ] Video player with custom controls
-- [ ] Timeline editor with draggable markers
+- [x] Video player with custom controls
+- [x] Timeline editor with draggable markers
+- [x] Segment editor panel
+- [x] Project view layout
+
+## UI Components Still Needed 🎨
 - [ ] Transcript display with sync highlighting
 - [ ] Segment cards with thumbnails
 - [ ] Settings dialog/page
 - [ ] Error states and retry buttons
-- [ ] Loading skeletons
-- [ ] Empty states for each tab
+- [ ] Loading skeletons for job cards
+- [ ] Empty state improvements
 
 ## Technical Debt & Improvements 🔧
 - [ ] Replace mock upload with real file handling
@@ -122,10 +138,14 @@
 - [ ] Implement proper routing for multi-page nav
 - [ ] Add unit tests for components
 - [ ] Add E2E tests for critical flows
+- [ ] Real video file storage and playback
+- [ ] Waveform visualization on timeline
 
 ## Next Immediate Steps 🎯
-1. Build video player component with timeline
-2. Implement transcript display component
-3. Create segment review/editing interface
-4. Integrate actual LLM for chapter detection
+1. ✅ Build video player component with timeline
+2. ✅ Implement segment editor component
+3. ✅ Create segment review/editing interface
+4. Test LLM integration with real transcript
 5. Add settings page for LLM configuration
+6. Implement real video file handling
+7. Add waveform visualization to timeline

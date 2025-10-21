@@ -6,17 +6,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Toaster } from '@/components/ui/sonner'
 import { UploadZone } from '@/components/UploadZone'
 import { JobCard } from '@/components/JobCard'
-import type { VideoJob } from '@/lib/types'
+import { ProjectView } from '@/components/ProjectView'
+import type { VideoJob, Project } from '@/lib/types'
 import { toast } from 'sonner'
 
 function App() {
   const [jobs, setJobs] = useKV<VideoJob[]>('video-jobs', [])
+  const [projects, setProjects] = useKV<Project[]>('video-projects', [])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [showUpload, setShowUpload] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
 
   const jobsList = jobs ?? []
+  const projectsList = projects ?? []
+  const currentProject = projectsList.find((p) => p.id === currentProjectId)
 
   const handleUpload = async (file: File) => {
     setIsUploading(true)
@@ -86,6 +91,69 @@ function App() {
                 : job
             )
           )
+
+          const mockTranscript = `Welcome to this tutorial on video editing. Today we'll cover the basics of cutting and splicing footage.
+
+First, let's talk about the timeline interface. The timeline is where you'll spend most of your editing time. It displays your video clips in chronological order.
+
+Next, we'll explore different cutting techniques. The most common is the straight cut, where one clip immediately follows another.
+
+Now let's discuss transitions. Transitions help smooth the flow between different clips and can add professional polish to your work.
+
+Finally, we'll cover audio mixing. Good audio is just as important as good video, so pay attention to your levels and use appropriate music.`
+
+          const newProject: Project = {
+            id: `project-${jobId}`,
+            name: file.name,
+            jobId,
+            transcript: mockTranscript,
+            segments: [
+              {
+                id: 'seg-1',
+                title: 'Introduction',
+                startTime: 0,
+                endTime: 45,
+                description: 'Welcome and overview of the tutorial',
+              },
+              {
+                id: 'seg-2',
+                title: 'Timeline Interface',
+                startTime: 45,
+                endTime: 120,
+                description: 'Understanding the timeline and clip arrangement',
+              },
+              {
+                id: 'seg-3',
+                title: 'Cutting Techniques',
+                startTime: 120,
+                endTime: 210,
+                description: 'Different methods for cutting video clips',
+              },
+              {
+                id: 'seg-4',
+                title: 'Transitions',
+                startTime: 210,
+                endTime: 315,
+                description: 'Adding smooth transitions between clips',
+              },
+              {
+                id: 'seg-5',
+                title: 'Audio Mixing',
+                startTime: 315,
+                endTime: 420,
+                description: 'Balancing audio levels and adding music',
+              },
+              {
+                id: 'seg-6',
+                title: 'Conclusion',
+                startTime: 420,
+                endTime: 450,
+                description: 'Recap and final thoughts',
+              },
+            ],
+          }
+
+          setProjects((currentProjects) => [newProject, ...(currentProjects ?? [])])
           
           toast.success('Video processed successfully!', {
             description: `${file.name} has been segmented into 6 chapters`,
@@ -105,6 +173,31 @@ function App() {
   
   const completedJobs = jobsList.filter((job) => job.status === 'completed')
   const failedJobs = jobsList.filter((job) => job.status === 'failed')
+
+  const handleViewDetails = (jobId: string) => {
+    const project = projectsList.find((p) => p.jobId === jobId)
+    if (project) {
+      setCurrentProjectId(project.id)
+    }
+  }
+
+  const handleProjectUpdate = (updatedProject: Project) => {
+    setProjects((currentProjects) =>
+      (currentProjects ?? []).map((p) =>
+        p.id === updatedProject.id ? updatedProject : p
+      )
+    )
+  }
+
+  if (currentProject) {
+    return (
+      <ProjectView
+        project={currentProject}
+        onBack={() => setCurrentProjectId(null)}
+        onProjectUpdate={handleProjectUpdate}
+      />
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -176,7 +269,7 @@ function App() {
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   {completedJobs.map((job) => (
-                    <JobCard key={job.id} job={job} />
+                    <JobCard key={job.id} job={job} onViewDetails={handleViewDetails} />
                   ))}
                 </div>
               )}
@@ -190,7 +283,7 @@ function App() {
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   {failedJobs.map((job) => (
-                    <JobCard key={job.id} job={job} />
+                    <JobCard key={job.id} job={job} onViewDetails={handleViewDetails} />
                   ))}
                 </div>
               )}
