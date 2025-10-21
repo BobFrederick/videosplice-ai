@@ -106,6 +106,7 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
             id: `project-${jobId}`,
             name: file.name,
             jobId,
+            duration: 450,
             transcript: mockTranscript,
             segments: [
               {

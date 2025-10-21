@@ -216,6 +216,29 @@ export function Timeline({
   const playheadPosition = duration > 0 ? (currentTime / duration) * 100 : 0
   const boundaries = getBoundaries()
 
+  const generateTimeGrid = () => {
+    const gridLines: number[] = []
+    let interval = 30
+    
+    if (duration <= 60) {
+      interval = 10
+    } else if (duration <= 180) {
+      interval = 30
+    } else if (duration <= 600) {
+      interval = 60
+    } else {
+      interval = 120
+    }
+
+    for (let time = interval; time < duration; time += interval) {
+      gridLines.push(time)
+    }
+    
+    return gridLines
+  }
+
+  const timeGrid = generateTimeGrid()
+
   return (
     <div className={cn('space-y-4', className)}>
       <div className="flex items-center justify-between">
@@ -238,7 +261,7 @@ export function Timeline({
       <Card
         ref={timelineRef}
         className={cn(
-          'relative h-32 overflow-hidden',
+          'relative h-32 overflow-visible pt-6',
           isCtrlPressed ? 'cursor-not-allowed' : 'cursor-crosshair'
         )}
         onClick={handleTimelineClick}
@@ -247,6 +270,20 @@ export function Timeline({
         onMouseLeave={handleMouseLeave}
       >
         <div className="absolute inset-0 bg-muted/20">
+          {timeGrid.map((time) => {
+            const position = duration > 0 ? (time / duration) * 100 : 0
+            return (
+              <div
+                key={`grid-${time}`}
+                className="absolute top-0 h-full w-px bg-border/50 z-0"
+                style={{ left: `${position}%` }}
+              >
+                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground font-mono whitespace-nowrap">
+                  {formatTime(time)}
+                </div>
+              </div>
+            )
+          })}
           {segments.map((segment, index) => {
             const left = duration > 0 ? (segment.startTime / duration) * 100 : 0
             const width = duration > 0 ? ((segment.endTime - segment.startTime) / duration) * 100 : 0

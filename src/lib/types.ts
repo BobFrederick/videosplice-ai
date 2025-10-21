@@ -29,4 +29,5 @@ export interface Project {
   transcript?: string
   segments: Segment[]
   jobId: string
+  duration?: number
 }

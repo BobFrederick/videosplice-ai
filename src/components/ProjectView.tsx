@@ -29,7 +29,7 @@ interface ProjectViewProps {
 
 export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete }: ProjectViewProps) {
   const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
+  const [duration, setDuration] = useState(project.duration || 0)
   const [selectedSegmentId, setSelectedSegmentId] = useState<string>()
   const [isGenerating, setIsGenerating] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
