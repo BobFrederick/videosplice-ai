@@ -105,20 +105,15 @@ export function Timeline({
 
   const updateBoundary = useCallback((oldBoundaryTime: number, newTime: number) => {
     const currentSegments = segmentsRef.current
-    const leftSegment = currentSegments.find(s => s.endTime === oldBoundaryTime)
-    const rightSegment = currentSegments.find(s => s.startTime === oldBoundaryTime)
+    const leftSegment = currentSegments.find(s => Math.abs(s.endTime - oldBoundaryTime) < 0.5)
+    const rightSegment = currentSegments.find(s => Math.abs(s.startTime - oldBoundaryTime) < 0.5)
     
     if (!leftSegment || !rightSegment) return
     
-    const leftNeighbor = currentSegments.find(s => s.endTime === leftSegment.startTime)
-    const rightNeighbor = currentSegments.find(s => s.startTime === rightSegment.endTime)
-    
-    const minBound = leftNeighbor ? leftNeighbor.startTime + MIN_SEGMENT_DURATION : MIN_SEGMENT_DURATION
-    const maxBound = rightNeighbor ? rightNeighbor.endTime - MIN_SEGMENT_DURATION : duration - MIN_SEGMENT_DURATION
+    const minBound = leftSegment.startTime + MIN_SEGMENT_DURATION
+    const maxBound = rightSegment.endTime - MIN_SEGMENT_DURATION
     
     const clampedTime = Math.max(minBound, Math.min(maxBound, newTime))
-    
-    if (Math.abs(clampedTime - oldBoundaryTime) < 0.1) return
 
     const updatedSegments = currentSegments.map((segment) => {
       if (segment.id === leftSegment.id) {
@@ -131,7 +126,7 @@ export function Timeline({
     })
 
     onSegmentChange(updatedSegments)
-  }, [onSegmentChange, duration])
+  }, [onSegmentChange])
 
   useEffect(() => {
     if (draggingBoundary === null) return
