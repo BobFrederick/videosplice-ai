@@ -69,13 +69,13 @@ export function Timeline({
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const getTimeFromPosition = (clientX: number, clamp: boolean = true): number => {
+  const getTimeFromPosition = (clientX: number): number => {
     if (!timelineRef.current) return 0
     const rect = timelineRef.current.getBoundingClientRect()
     const x = clientX - rect.left
-    const percentage = clamp ? Math.max(0, Math.min(1, x / rect.width)) : x / rect.width
+    const percentage = Math.max(0, Math.min(1, x / rect.width))
     const time = percentage * duration
-    return clamp ? time : Math.max(0, Math.min(duration, time))
+    return time
   }
 
   const getBoundaries = () => {
@@ -110,10 +110,13 @@ export function Timeline({
     
     if (!leftSegment || !rightSegment) return
     
-    const clampedTime = Math.max(
-      leftSegment.startTime + MIN_SEGMENT_DURATION,
-      Math.min(rightSegment.endTime - MIN_SEGMENT_DURATION, newTime)
-    )
+    const leftNeighbor = currentSegments.find(s => s.endTime === leftSegment.startTime)
+    const rightNeighbor = currentSegments.find(s => s.startTime === rightSegment.endTime)
+    
+    const minBound = leftNeighbor ? leftNeighbor.startTime + MIN_SEGMENT_DURATION : MIN_SEGMENT_DURATION
+    const maxBound = rightNeighbor ? rightNeighbor.endTime - MIN_SEGMENT_DURATION : duration - MIN_SEGMENT_DURATION
+    
+    const clampedTime = Math.max(minBound, Math.min(maxBound, newTime))
     
     if (Math.abs(clampedTime - oldBoundaryTime) < 0.1) return
 
@@ -128,14 +131,14 @@ export function Timeline({
     })
 
     onSegmentChange(updatedSegments)
-  }, [onSegmentChange])
+  }, [onSegmentChange, duration])
 
   useEffect(() => {
     if (draggingBoundary === null) return
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
       e.preventDefault()
-      const time = getTimeFromPosition(e.clientX, false)
+      const time = getTimeFromPosition(e.clientX)
       updateBoundary(draggingBoundary, time)
     }
 
