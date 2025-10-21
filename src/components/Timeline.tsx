@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { Plus, Trash } from '@phosphor-icons/react'
 import { Card } from '@/components/ui/card'
+import { Plus, Trash } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import type { Segment } from '@/lib/types'
 
@@ -128,7 +128,6 @@ export function Timeline({
     if (draggingBoundary === null) return
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
-      if (!timelineRef.current) return
       const time = getTimeFromPosition(e.clientX)
       updateBoundary(draggingBoundary, time)
     }
@@ -277,7 +276,7 @@ export function Timeline({
           ? { ...seg, endTime: time }
           : seg
       )
-
+      
       onSegmentChange([...updatedSegments, newSegment])
     }
   }
@@ -361,6 +360,7 @@ export function Timeline({
               </div>
             )
           })}
+
           {segments.map((segment, index) => {
             const left = duration > 0 ? (segment.startTime / duration) * 100 : 0
             const right = duration > 0 ? ((duration - segment.endTime) / duration) * 100 : 0
@@ -399,10 +399,10 @@ export function Timeline({
             const position = duration > 0 ? (boundary / duration) * 100 : 0
             const isHovered = hoverPosition !== null && findNearestBoundary(hoverPosition, 3) === boundary
             const isDragging = draggingBoundary === boundary
-            
+
             const isFirst = boundaryIndex === 0 || boundary === Math.min(...boundaries.filter(b => b !== 0))
             const isLast = boundaryIndex === boundaries.length - 1 || boundary === Math.max(...boundaries.filter(b => b !== duration))
-            
+
             const zIndex = isDragging ? 30 : isFirst ? 25 : isLast ? 25 : 20
 
             return (
@@ -434,7 +434,7 @@ export function Timeline({
                     msUserSelect: 'none',
                   }}
                 />
-                
+
                 <div
                   className={cn(
                     'absolute inset-0 border-l-2 border-dashed transition-all pointer-events-none',
@@ -442,11 +442,11 @@ export function Timeline({
                       ? 'border-primary border-l-[3px]'
                       : isHovered
                       ? 'border-primary border-l-[3px]'
-                      : 'border-foreground/30'
+                      : 'border-border'
                   )}
                 />
-                
-                {(isHovered || isDragging) && (
+
+                {(isDragging || isHovered) && (
                   <div
                     className={cn(
                       'absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg z-50 pointer-events-none',
