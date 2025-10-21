@@ -173,7 +173,6 @@ export function Timeline({
     if (draggingBoundary !== null) return
     
     const time = getTimeFromPosition(e.clientX)
-    const nearestBoundary = findNearestBoundary(time, 3)
 
     if (isCtrlPressed) {
       const clickedSegment = segments.find(
@@ -183,8 +182,6 @@ export function Timeline({
       if (clickedSegment) {
         removeSegment(clickedSegment)
       }
-    } else if (nearestBoundary !== null && !isShiftPressed) {
-      onSeek(nearestBoundary)
     } else if (isShiftPressed) {
       addBoundary(time)
     }
@@ -397,7 +394,7 @@ export function Timeline({
 
           {interiorBoundaries.map((boundary, boundaryIndex) => {
             const position = duration > 0 ? (boundary / duration) * 100 : 0
-            const isHovered = hoverPosition !== null && findNearestBoundary(hoverPosition, 3) === boundary
+            const isHovered = hoverPosition !== null && findNearestBoundary(hoverPosition, 2) === boundary
             const isDragging = draggingBoundary === boundary
 
             return (
@@ -413,7 +410,7 @@ export function Timeline({
               >
                 <div
                   className={cn(
-                    'absolute inset-0 -left-2 -right-2',
+                    'absolute inset-0 -left-4 -right-4',
                   )}
                   onMouseDown={(e) => {
                     handleBoundaryMouseDown(boundary, e)
@@ -455,7 +452,7 @@ export function Timeline({
             )
           })}
 
-          {hoverPosition !== null && findNearestBoundary(hoverPosition, 3) === null && (
+          {hoverPosition !== null && findNearestBoundary(hoverPosition, 2) === null && (
             <div
               className="absolute top-0 h-full w-px bg-foreground/20 pointer-events-none z-15"
               style={{ left: `${duration > 0 ? (hoverPosition / duration) * 100 : 0}%` }}
