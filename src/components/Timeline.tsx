@@ -217,13 +217,14 @@ export function Timeline({
     const segmentAfter = sortedSegments[index + 1]
     
     if (segmentBefore && segmentAfter) {
+      const midpoint = (segmentToRemove.startTime + segmentToRemove.endTime) / 2
       const updatedSegments = segments
         .filter((seg) => seg.id !== segmentToRemove.id)
         .map((seg) =>
           seg.id === segmentBefore.id
-            ? { ...seg, endTime: segmentAfter.startTime }
+            ? { ...seg, endTime: midpoint }
             : seg.id === segmentAfter.id
-            ? { ...seg, startTime: segmentBefore.endTime }
+            ? { ...seg, startTime: midpoint }
             : seg
         )
       onSegmentChange(updatedSegments)
@@ -408,7 +409,7 @@ export function Timeline({
               >
                 <div
                   className={cn(
-                    'absolute inset-0 -left-3 -right-3 z-20',
+                    'absolute inset-0 -left-6 -right-6 z-20',
                   )}
                   onMouseDown={(e) => {
                     handleBoundaryMouseDown(boundary, e)

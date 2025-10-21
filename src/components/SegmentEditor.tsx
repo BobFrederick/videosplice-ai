@@ -69,14 +69,15 @@ export function SegmentEditor({
         )
       onSegmentChange(updated)
     } else if (segmentBefore && segmentAfter) {
-      const mergedSegment = {
-        ...segmentBefore,
-        endTime: segmentAfter.endTime,
-      }
+      const midpoint = (segmentToDelete.startTime + segmentToDelete.endTime) / 2
       const updated = segments
-        .filter((seg) => seg.id !== id && seg.id !== segmentAfter.id)
+        .filter((seg) => seg.id !== id)
         .map((seg) =>
-          seg.id === segmentBefore.id ? mergedSegment : seg
+          seg.id === segmentBefore.id
+            ? { ...seg, endTime: midpoint }
+            : seg.id === segmentAfter.id
+            ? { ...seg, startTime: midpoint }
+            : seg
         )
       onSegmentChange(updated)
     }
