@@ -208,7 +208,6 @@ Format:
             <VideoPlayer
               src={project.videoUrl}
               currentTime={currentTime}
-              duration={duration}
               onTimeUpdate={setCurrentTime}
               onDurationChange={setDuration}
             />

@@ -1,44 +1,65 @@
 import { useEffect, useRef, useState } from 'react'
 import { Play, Pause, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react'
-import { Button } from '@/components/ui/button'
-import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
+import { Slider } from '@/components/ui/slider'
+import { Button } from '@/components/ui/button'
 
 interface VideoPlayerProps {
   src?: string
   currentTime?: number
-  duration?: number
   onTimeUpdate?: (time: number) => void
   onDurationChange?: (duration: number) => void
   className?: string
 }
 
-export function VideoPlayer({ 
-  src, 
-  currentTime, 
-  duration: initialDuration,
-  onTimeUpdate, 
+export function VideoPlayer({
+  src,
+  currentTime,
+  onTimeUpdate,
   onDurationChange,
-  className 
+  className,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [isMuted, setIsMuted] = useState(false)
+  const [duration, setDuration] = useState(0)
+  const [progress, setProgress] = useState(0)
   const [volume, setVolume] = useState(100)
-  const [duration, setDuration] = useState(initialDuration || 0)
-  const [playbackTime, setPlaybackTime] = useState(0)
-
-  useEffect(() => {
-    if (initialDuration && duration === 0) {
-      setDuration(initialDuration)
-    }
-  }, [initialDuration, duration])
+  const [isMuted, setIsMuted] = useState(false)
 
   useEffect(() => {
     if (videoRef.current && currentTime !== undefined) {
       videoRef.current.currentTime = currentTime
     }
   }, [currentTime])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const handleLoadedMetadata = () => {
+      setDuration(video.duration)
+      onDurationChange?.(video.duration)
+    }
+
+    const handleTimeUpdate = () => {
+      setProgress(video.currentTime)
+      onTimeUpdate?.(video.currentTime)
+    }
+
+    const handleEnded = () => {
+      setIsPlaying(false)
+    }
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata)
+    video.addEventListener('timeupdate', handleTimeUpdate)
+    video.addEventListener('ended', handleEnded)
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      video.removeEventListener('timeupdate', handleTimeUpdate)
+      video.removeEventListener('ended', handleEnded)
+    }
+  }, [onTimeUpdate, onDurationChange])
 
   const togglePlay = () => {
     if (!videoRef.current) return
@@ -69,74 +90,52 @@ export function VideoPlayer({
     }
   }
 
-  const handleTimeUpdate = () => {
+  const handleProgressChange = (value: number[]) => {
     if (!videoRef.current) return
-    const time = videoRef.current.currentTime
-    setPlaybackTime(time)
-    onTimeUpdate?.(time)
-  }
-
-  const handleDurationChange = () => {
-    if (!videoRef.current) return
-    const dur = videoRef.current.duration
-    setDuration(dur)
-    onDurationChange?.(dur)
-  }
-
-  const handleSeek = (value: number[]) => {
-    if (!videoRef.current) {
-      const time = value[0]
-      setPlaybackTime(time)
-      onTimeUpdate?.(time)
-      return
-    }
-    const time = value[0]
-    videoRef.current.currentTime = time
-    setPlaybackTime(time)
+    const newTime = value[0]
+    videoRef.current.currentTime = newTime
+    setProgress(newTime)
   }
 
   const formatTime = (seconds: number) => {
+    if (!seconds || !isFinite(seconds)) return '0:00'
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   return (
-    <div className={cn('flex flex-col gap-3', className)}>
-      <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
-        <video
-          ref={videoRef}
-          className="w-full h-full"
-          onTimeUpdate={handleTimeUpdate}
-          onDurationChange={handleDurationChange}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-        >
-          {src && <source src={src} type="video/mp4" />}
-        </video>
-        
-        {!src && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-sm text-muted-foreground">No video loaded</p>
+    <div className={cn('flex flex-col gap-4', className)}>
+      <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+        {src ? (
+          <video
+            ref={videoRef}
+            src={src}
+            className="w-full h-full object-contain"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+            No video loaded
           </div>
         )}
       </div>
 
       <div className="space-y-3">
         <Slider
-          value={[playbackTime]}
+          value={[progress]}
+          onValueChange={handleProgressChange}
           max={duration || 100}
           step={0.1}
-          onValueChange={handleSeek}
           className="cursor-pointer"
+          disabled={!src}
         />
 
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Button
+              onClick={togglePlay}
               size="sm"
               variant="ghost"
-              onClick={togglePlay}
               disabled={!src}
             >
               {isPlaying ? (
@@ -145,17 +144,16 @@ export function VideoPlayer({
                 <Play size={20} weight="fill" />
               )}
             </Button>
-
-            <span className="text-xs font-mono text-muted-foreground min-w-[80px]">
-              {formatTime(playbackTime)} / {formatTime(duration)}
+            <span className="text-sm text-muted-foreground tabular-nums min-w-[80px]">
+              {formatTime(progress)} / {formatTime(duration)}
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             <Button
+              onClick={toggleMute}
               size="sm"
               variant="ghost"
-              onClick={toggleMute}
               disabled={!src}
             >
               {isMuted || volume === 0 ? (
@@ -166,10 +164,11 @@ export function VideoPlayer({
             </Button>
             <Slider
               value={[volume]}
+              onValueChange={handleVolumeChange}
               max={100}
               step={1}
-              onValueChange={handleVolumeChange}
-              className="w-20"
+              className="w-24 cursor-pointer"
+              disabled={!src}
             />
           </div>
         </div>
