@@ -104,9 +104,9 @@ Now let's discuss transitions. Transitions help smooth the flow between differen
 Finally, we'll cover audio mixing. Good audio is just as important as good video, so pay attention to your levels and use appropriate music.`
 
           const newProject: Project = {
-            id: `project-${jobId}`,
+            id: `project-${Date.now()}`,
             name: file.name,
-            jobId,
+            jobId: jobId,
             videoUrl,
             duration: 450,
             transcript: mockTranscript,
