@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { Plus, Minus } from '@phosphor-icons/react'
+import { Plus } from '@phosphor-icons/react'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { Segment } from '@/lib/types'
@@ -24,20 +24,20 @@ export function Timeline({
   const timelineRef = useRef<HTMLDivElement>(null)
   const [draggingBoundary, setDraggingBoundary] = useState<{ originalTime: number; segmentIds: string[] } | null>(null)
   const [hoverPosition, setHoverPosition] = useState<number | null>(null)
-  const [isCtrlPressed, setIsCtrlPressed] = useState(false)
+  const [isShiftPressed, setIsShiftPressed] = useState(false)
   
   const MIN_SEGMENT_DURATION = 5
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Control' || e.key === 'Meta') {
-        setIsCtrlPressed(true)
+      if (e.key === 'Shift') {
+        setIsShiftPressed(true)
       }
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Control' || e.key === 'Meta') {
-        setIsCtrlPressed(false)
+      if (e.key === 'Shift') {
+        setIsShiftPressed(false)
       }
     }
 
@@ -108,37 +108,47 @@ export function Timeline({
   const updateBoundary = (segmentIds: string[], newTime: number) => {
     if (segmentIds.length === 0) return
     
-    const affectedSegments = segments.filter(s => segmentIds.includes(s.id))
-    if (affectedSegments.length === 0) return
-    
-    const leftSegment = affectedSegments.find(s => s.endTime === draggingBoundary?.originalTime)
-    const rightSegment = affectedSegments.find(s => s.startTime === draggingBoundary?.originalTime)
-    
-    if (!leftSegment && !rightSegment) return
-    
     const currentBoundaryTime = draggingBoundary?.originalTime ?? 0
+    const delta = newTime - currentBoundaryTime
     
-    const boundaries = getBoundaries()
-    const sortedBoundaries = [...boundaries].sort((a, b) => a - b)
-    const boundaryIndex = sortedBoundaries.indexOf(currentBoundaryTime)
+    const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime)
     
-    if (boundaryIndex === -1) return
+    const leftSegment = segments.find(s => s.endTime === currentBoundaryTime)
+    const rightSegment = segments.find(s => s.startTime === currentBoundaryTime)
     
-    const prevBoundary = sortedBoundaries[boundaryIndex - 1] ?? 0
-    const nextBoundary = sortedBoundaries[boundaryIndex + 1] ?? duration
+    if (!leftSegment || !rightSegment) return
     
-    const clampedTime = Math.max(
-      prevBoundary + MIN_SEGMENT_DURATION,
-      Math.min(nextBoundary - MIN_SEGMENT_DURATION, newTime)
-    )
+    const leftSegmentIndex = sortedSegments.findIndex(s => s.id === leftSegment.id)
+    const rightSegmentIndex = sortedSegments.findIndex(s => s.id === rightSegment.id)
+    
+    const newLeftEndTime = leftSegment.endTime + delta
+    
+    if (newLeftEndTime <= leftSegment.startTime + MIN_SEGMENT_DURATION) {
+      return
+    }
+    
+    if (newLeftEndTime >= duration - MIN_SEGMENT_DURATION) {
+      return
+    }
 
-    const updatedSegments = segments.map((segment) => {
-      if (leftSegment && segment.id === leftSegment.id) {
-        return { ...segment, endTime: clampedTime }
+    const updatedSegments = segments.map((segment, idx) => {
+      const sortedIdx = sortedSegments.findIndex(s => s.id === segment.id)
+      
+      if (sortedIdx === leftSegmentIndex) {
+        return { ...segment, endTime: newLeftEndTime }
       }
-      if (rightSegment && segment.id === rightSegment.id) {
-        return { ...segment, startTime: clampedTime }
+      
+      if (sortedIdx > leftSegmentIndex) {
+        const newStartTime = segment.startTime + delta
+        const newEndTime = segment.endTime + delta
+        
+        if (newEndTime > duration) {
+          return segment
+        }
+        
+        return { ...segment, startTime: newStartTime, endTime: newEndTime }
       }
+      
       return segment
     })
 
@@ -170,11 +180,9 @@ export function Timeline({
     const time = getTimeFromPosition(e.clientX)
     const nearestBoundary = findNearestBoundary(time, 3)
 
-    if (nearestBoundary !== null && isCtrlPressed) {
-      removeBoundary(nearestBoundary)
-    } else if (nearestBoundary !== null && !isCtrlPressed) {
+    if (nearestBoundary !== null && !isShiftPressed) {
       onSeek(nearestBoundary)
-    } else if (!isCtrlPressed) {
+    } else if (isShiftPressed) {
       addBoundary(time)
     }
   }
@@ -212,31 +220,6 @@ export function Timeline({
     }
   }
 
-  const removeBoundary = (time: number) => {
-    if (time === 0 || time === duration) return
-
-    const segmentsBefore = segments.filter((seg) => seg.endTime === time)
-    const segmentsAfter = segments.filter((seg) => seg.startTime === time)
-
-    if (segmentsBefore.length === 1 && segmentsAfter.length === 1) {
-      const beforeSeg = segmentsBefore[0]
-      const afterSeg = segmentsAfter[0]
-
-      const mergedSegment: Segment = {
-        ...beforeSeg,
-        endTime: afterSeg.endTime,
-        title: beforeSeg.title,
-      }
-
-      const updatedSegments = segments
-        .filter((seg) => seg.id !== beforeSeg.id && seg.id !== afterSeg.id)
-        .concat(mergedSegment)
-        .sort((a, b) => a.startTime - b.startTime)
-
-      onSegmentChange(updatedSegments)
-    }
-  }
-
   const playheadPosition = duration > 0 ? (currentTime / duration) * 100 : 0
   const boundaries = getBoundaries()
 
@@ -270,11 +253,10 @@ export function Timeline({
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Plus size={14} weight="bold" />
-            <span>Click to add split</span>
+            <span>Shift+Click to add split</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Minus size={14} weight="bold" />
-            <span>Ctrl+Click to remove</span>
+            <span>Click boundary to move</span>
           </div>
           <span className="text-xs text-muted-foreground font-mono">
             {formatTime(duration)}
@@ -286,7 +268,7 @@ export function Timeline({
         ref={timelineRef}
         className={cn(
           'relative h-32 overflow-visible pt-6 p-0',
-          isCtrlPressed ? 'cursor-not-allowed' : 'cursor-crosshair'
+          isShiftPressed ? 'cursor-crosshair' : 'cursor-pointer'
         )}
         onClick={handleTimelineClick}
         onMouseMove={handleMouseMove}
@@ -360,18 +342,14 @@ export function Timeline({
                     isDragging
                       ? 'border-primary border-l-[3px]'
                       : isHovered
-                      ? isCtrlPressed
-                        ? 'border-destructive border-l-[3px]'
-                        : 'border-primary border-l-[3px]'
+                      ? 'border-primary border-l-[3px]'
                       : 'border-foreground/30'
                   )}
                   onMouseDown={(e) => {
-                    if (!isCtrlPressed) {
-                      handleBoundaryMouseDown(boundary, e)
-                    }
+                    handleBoundaryMouseDown(boundary, e)
                   }}
                   style={{
-                    cursor: isCtrlPressed ? 'not-allowed' : 'ew-resize',
+                    cursor: 'ew-resize',
                   }}
                 />
                 
@@ -379,16 +357,10 @@ export function Timeline({
                   <div
                     className={cn(
                       'absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg z-50',
-                      isCtrlPressed
-                        ? 'bg-destructive text-destructive-foreground'
-                        : 'bg-primary text-primary-foreground'
+                      'bg-primary text-primary-foreground'
                     )}
                   >
-                    {isCtrlPressed ? (
-                      <Minus size={12} weight="bold" />
-                    ) : (
-                      formatTime(boundary)
-                    )}
+                    {formatTime(boundary)}
                   </div>
                 )}
               </div>
