@@ -19,8 +19,8 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
 
-  const jobsList = jobs ?? []
-  const projectsList = projects ?? []
+  const jobsList = Array.isArray(jobs) ? jobs : []
+  const projectsList = Array.isArray(projects) ? projects : []
   const currentProject = projectsList.find((p) => p.id === currentProjectId)
 
   const handleUpload = async (file: File) => {
