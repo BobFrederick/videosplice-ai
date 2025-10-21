@@ -130,6 +130,8 @@ export function Timeline({
         const percentage = Math.max(0, Math.min(1, x / rect.width))
         const time = percentage * duration
         
+        setHoverPosition(time)
+        
         const { left: leftSegment, right: rightSegment } = draggingSegmentsRef.current
         const currentSegments = segmentsRef.current
         
@@ -161,6 +163,7 @@ export function Timeline({
       }
       
       setDraggingBoundary(null)
+      setHoverPosition(null)
       draggingSegmentsRef.current = null
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
@@ -181,11 +184,6 @@ export function Timeline({
   }, [draggingBoundary, onSegmentChange, duration])
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (draggingBoundary !== null) {
-      const time = getTimeFromPosition(e.clientX)
-      setHoverPosition(time)
-      return
-    }
     const time = getTimeFromPosition(e.clientX)
     setHoverPosition(time)
   }
