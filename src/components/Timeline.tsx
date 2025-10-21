@@ -22,6 +22,7 @@ export function Timeline({
   className,
 }: TimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null)
+  const segmentsRef = useRef<Segment[]>(segments)
   const [draggingBoundary, setDraggingBoundary] = useState<number | null>(null)
   const [hoverPosition, setHoverPosition] = useState<number | null>(null)
   const [isShiftPressed, setIsShiftPressed] = useState(false)
@@ -29,6 +30,10 @@ export function Timeline({
   const [originalSegments] = useState<Segment[]>(segments)
   
   const MIN_SEGMENT_DURATION = 10
+
+  useEffect(() => {
+    segmentsRef.current = segments
+  }, [segments])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -107,12 +112,13 @@ export function Timeline({
     document.body.style.cursor = 'ew-resize'
     document.body.style.userSelect = 'none'
 
-      const handleGlobalMouseMove = (e: MouseEvent) => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
       if (!timelineRef.current || draggingBoundary === null) return
       
       const time = getTimeFromPosition(e.clientX)
-      const leftSegment = segments.find(s => s.endTime === draggingBoundary)
-      const rightSegment = segments.find(s => s.startTime === draggingBoundary)
+      const currentSegments = segmentsRef.current
+      const leftSegment = currentSegments.find(s => s.endTime === draggingBoundary)
+      const rightSegment = currentSegments.find(s => s.startTime === draggingBoundary)
       
       if (!leftSegment || !rightSegment) return
       
@@ -121,7 +127,7 @@ export function Timeline({
       
       const clampedTime = Math.max(minTime, Math.min(maxTime, time))
 
-      const updatedSegments = segments.map((segment) => {
+      const updatedSegments = currentSegments.map((segment) => {
         if (segment.id === leftSegment.id) {
           return { ...segment, endTime: clampedTime }
         }
@@ -149,7 +155,7 @@ export function Timeline({
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
-  }, [draggingBoundary, segments, onSegmentChange])
+  }, [draggingBoundary, onSegmentChange, duration])
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (draggingBoundary !== null) return
