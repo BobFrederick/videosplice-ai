@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Brain, DownloadSimple, Spinner } from '@phosphor-icons/react'
+import { ArrowLeft, Brain, DownloadSimple, Spinner, Trash } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -8,14 +8,26 @@ import { Timeline } from '@/components/Timeline'
 import { SegmentEditor } from '@/components/SegmentEditor'
 import type { Project, Segment } from '@/lib/types'
 import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 interface ProjectViewProps {
   project: Project
   onBack: () => void
   onProjectUpdate: (project: Project) => void
+  onProjectDelete?: (projectId: string) => void
 }
 
-export function ProjectView({ project, onBack, onProjectUpdate }: ProjectViewProps) {
+export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete }: ProjectViewProps) {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [selectedSegmentId, setSelectedSegmentId] = useState<string>()
@@ -154,6 +166,37 @@ Format:
                 )}
                 {isGenerating ? 'Generating...' : 'Generate Video Files'}
               </Button>
+              
+              {onProjectDelete && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="icon">
+                      <Trash size={16} weight="bold" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Project</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete "{project.name}"? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => {
+                          onProjectDelete(project.id)
+                          onBack()
+                          toast.success('Project deleted')
+                        }}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           </div>
         </div>

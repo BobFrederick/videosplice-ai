@@ -189,12 +189,25 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
     )
   }
 
+  const handleProjectDelete = (projectId: string) => {
+    setProjects((currentProjects) =>
+      (currentProjects ?? []).filter((p) => p.id !== projectId)
+    )
+    const project = projectsList.find((p) => p.id === projectId)
+    if (project) {
+      setJobs((currentJobs) =>
+        (currentJobs ?? []).filter((j) => j.id !== project.jobId)
+      )
+    }
+  }
+
   if (currentProject) {
     return (
       <ProjectView
         project={currentProject}
         onBack={() => setCurrentProjectId(null)}
         onProjectUpdate={handleProjectUpdate}
+        onProjectDelete={handleProjectDelete}
       />
     )
   }

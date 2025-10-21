@@ -34,7 +34,52 @@ export function SegmentEditor({
   }
 
   const deleteSegment = (id: string) => {
-    onSegmentChange(segments.filter((seg) => seg.id !== id))
+    const segmentToDelete = segments.find((seg) => seg.id === id)
+    if (!segmentToDelete) return
+
+    if (segments.length === 1) {
+      onSegmentChange([])
+      return
+    }
+
+    const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime)
+    const index = sortedSegments.findIndex((seg) => seg.id === id)
+
+    if (index === -1) return
+
+    const segmentBefore = sortedSegments[index - 1]
+    const segmentAfter = sortedSegments[index + 1]
+
+    if (segmentBefore && !segmentAfter) {
+      const updated = segments
+        .filter((seg) => seg.id !== id)
+        .map((seg) =>
+          seg.id === segmentBefore.id
+            ? { ...seg, endTime: segmentToDelete.endTime }
+            : seg
+        )
+      onSegmentChange(updated)
+    } else if (!segmentBefore && segmentAfter) {
+      const updated = segments
+        .filter((seg) => seg.id !== id)
+        .map((seg) =>
+          seg.id === segmentAfter.id
+            ? { ...seg, startTime: segmentToDelete.startTime }
+            : seg
+        )
+      onSegmentChange(updated)
+    } else if (segmentBefore && segmentAfter) {
+      const mergedSegment = {
+        ...segmentBefore,
+        endTime: segmentAfter.endTime,
+      }
+      const updated = segments
+        .filter((seg) => seg.id !== id && seg.id !== segmentAfter.id)
+        .map((seg) =>
+          seg.id === segmentBefore.id ? mergedSegment : seg
+        )
+      onSegmentChange(updated)
+    }
   }
 
   const addSegment = () => {
@@ -71,11 +116,13 @@ export function SegmentEditor({
               <div className="py-8 text-center">
                 <p className="text-sm text-muted-foreground">No segments yet</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Click "Add" to create a segment
+                  Click on the timeline to add segments
                 </p>
               </div>
             ) : (
-              segments.map((segment, index) => (
+              [...segments]
+                .sort((a, b) => a.startTime - b.startTime)
+                .map((segment, index) => (
                 <Card
                   key={segment.id}
                   className={`cursor-pointer transition-all ${

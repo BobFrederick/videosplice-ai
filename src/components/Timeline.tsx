@@ -1,6 +1,5 @@
-import { useRef, useState, useCallback } from 'react'
-import { Scissors, Plus } from '@phosphor-icons/react'
-import { Button } from '@/components/ui/button'
+import { useRef, useState, useCallback, useEffect } from 'react'
+import { Plus, Minus } from '@phosphor-icons/react'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { Segment } from '@/lib/types'
@@ -23,8 +22,33 @@ export function Timeline({
   className,
 }: TimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null)
-  const [draggingSegment, setDraggingSegment] = useState<string | null>(null)
-  const [draggingEdge, setDraggingEdge] = useState<'start' | 'end' | null>(null)
+  const [draggingBoundary, setDraggingBoundary] = useState<number | null>(null)
+  const [hoverPosition, setHoverPosition] = useState<number | null>(null)
+  const [isCtrlPressed, setIsCtrlPressed] = useState(false)
+  
+  const MIN_SEGMENT_DURATION = 5
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || e.key === 'Meta') {
+        setIsCtrlPressed(true)
+      }
+    }
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || e.key === 'Meta') {
+        setIsCtrlPressed(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -32,71 +56,179 @@ export function Timeline({
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!timelineRef.current || draggingSegment) return
-
+  const getTimeFromPosition = (clientX: number): number => {
+    if (!timelineRef.current) return 0
     const rect = timelineRef.current.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const percentage = x / rect.width
-    const time = percentage * duration
-
-    onSeek(time)
+    const x = clientX - rect.left
+    const percentage = Math.max(0, Math.min(1, x / rect.width))
+    return percentage * duration
   }
 
-  const handleDragStart = (segmentId: string, edge: 'start' | 'end') => {
-    setDraggingSegment(segmentId)
-    setDraggingEdge(edge)
+  const getBoundaries = (): number[] => {
+    const boundaries: number[] = []
+    segments.forEach((segment) => {
+      if (!boundaries.includes(segment.startTime)) {
+        boundaries.push(segment.startTime)
+      }
+      if (!boundaries.includes(segment.endTime)) {
+        boundaries.push(segment.endTime)
+      }
+    })
+    return boundaries.sort((a, b) => a - b)
   }
 
-  const handleDrag = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!draggingSegment || !draggingEdge || !timelineRef.current) return
+  const findNearestBoundary = (time: number, threshold: number = 2): number | null => {
+    const boundaries = getBoundaries()
+    
+    for (const boundary of boundaries) {
+      if (boundary === 0 || boundary === duration) continue
+      if (Math.abs(boundary - time) <= threshold) {
+        return boundary
+      }
+    }
+    return null
+  }
 
-      const rect = timelineRef.current.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const percentage = Math.max(0, Math.min(1, x / rect.width))
-      const time = percentage * duration
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (draggingBoundary !== null) {
+      const newTime = getTimeFromPosition(e.clientX)
+      updateBoundary(draggingBoundary, newTime)
+    } else {
+      const time = getTimeFromPosition(e.clientX)
+      setHoverPosition(time)
+    }
+  }
 
-      const updatedSegments = segments.map((segment) => {
-        if (segment.id === draggingSegment) {
-          if (draggingEdge === 'start') {
-            return {
-              ...segment,
-              startTime: Math.min(time, segment.endTime - 1),
-            }
-          } else {
-            return {
-              ...segment,
-              endTime: Math.max(time, segment.startTime + 1),
-            }
-          }
-        }
-        return segment
-      })
+  const handleMouseLeave = () => {
+    setHoverPosition(null)
+    if (draggingBoundary !== null) {
+      setDraggingBoundary(null)
+    }
+  }
+
+  const updateBoundary = (oldTime: number, newTime: number) => {
+    const boundaries = getBoundaries()
+    const index = boundaries.indexOf(oldTime)
+    
+    if (index === -1) return
+    
+    const prevBoundary = boundaries[index - 1] ?? 0
+    const nextBoundary = boundaries[index + 1] ?? duration
+    
+    const clampedTime = Math.max(
+      prevBoundary + MIN_SEGMENT_DURATION,
+      Math.min(nextBoundary - MIN_SEGMENT_DURATION, newTime)
+    )
+
+    const updatedSegments = segments.map((segment) => {
+      if (segment.endTime === oldTime) {
+        return { ...segment, endTime: clampedTime }
+      }
+      if (segment.startTime === oldTime) {
+        return { ...segment, startTime: clampedTime }
+      }
+      return segment
+    })
+
+    onSegmentChange(updatedSegments)
+  }
+
+  const handleBoundaryMouseDown = (boundary: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setDraggingBoundary(boundary)
+  }
+
+  const handleMouseUp = () => {
+    setDraggingBoundary(null)
+  }
+
+  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const time = getTimeFromPosition(e.clientX)
+    const nearestBoundary = findNearestBoundary(time, 3)
+
+    if (nearestBoundary !== null && isCtrlPressed) {
+      removeBoundary(nearestBoundary)
+    } else if (nearestBoundary !== null && !isCtrlPressed) {
+      onSeek(nearestBoundary)
+    } else if (!isCtrlPressed) {
+      addBoundary(time)
+    }
+  }
+
+  const addBoundary = (time: number) => {
+    if (time < MIN_SEGMENT_DURATION || time > duration - MIN_SEGMENT_DURATION) {
+      return
+    }
+
+    const boundaries = getBoundaries()
+    if (boundaries.some(b => Math.abs(b - time) < MIN_SEGMENT_DURATION)) {
+      return
+    }
+
+    const affectedSegment = segments.find(
+      (seg) => time > seg.startTime && time < seg.endTime
+    )
+
+    if (affectedSegment) {
+      const newSegment: Segment = {
+        id: `segment-${Date.now()}`,
+        title: 'New Segment',
+        startTime: time,
+        endTime: affectedSegment.endTime,
+        description: '',
+      }
+
+      const updatedSegments = segments.map((seg) =>
+        seg.id === affectedSegment.id
+          ? { ...seg, endTime: time }
+          : seg
+      )
+
+      onSegmentChange([...updatedSegments, newSegment])
+    }
+  }
+
+  const removeBoundary = (time: number) => {
+    if (time === 0 || time === duration) return
+
+    const segmentsBefore = segments.filter((seg) => seg.endTime === time)
+    const segmentsAfter = segments.filter((seg) => seg.startTime === time)
+
+    if (segmentsBefore.length === 1 && segmentsAfter.length === 1) {
+      const beforeSeg = segmentsBefore[0]
+      const afterSeg = segmentsAfter[0]
+
+      const mergedSegment: Segment = {
+        ...beforeSeg,
+        endTime: afterSeg.endTime,
+        title: beforeSeg.title,
+      }
+
+      const updatedSegments = segments
+        .filter((seg) => seg.id !== beforeSeg.id && seg.id !== afterSeg.id)
+        .concat(mergedSegment)
+        .sort((a, b) => a.startTime - b.startTime)
 
       onSegmentChange(updatedSegments)
-    },
-    [draggingSegment, draggingEdge, duration, segments, onSegmentChange]
-  )
-
-  const handleDragEnd = () => {
-    setDraggingSegment(null)
-    setDraggingEdge(null)
+    }
   }
 
-  const getSegmentPosition = (segment: Segment) => {
-    const left = (segment.startTime / duration) * 100
-    const width = ((segment.endTime - segment.startTime) / duration) * 100
-    return { left: `${left}%`, width: `${width}%` }
-  }
-
-  const playheadPosition = (currentTime / duration) * 100
+  const playheadPosition = duration > 0 ? (currentTime / duration) * 100 : 0
+  const boundaries = getBoundaries()
 
   return (
     <div className={cn('space-y-4', className)}>
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">Timeline</h3>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Plus size={14} weight="bold" />
+            <span>Click to add split</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Minus size={14} weight="bold" />
+            <span>Ctrl+Click to remove</span>
+          </div>
           <span className="text-xs text-muted-foreground font-mono">
             {formatTime(duration)}
           </span>
@@ -105,70 +237,114 @@ export function Timeline({
 
       <Card
         ref={timelineRef}
-        className="relative h-24 cursor-crosshair overflow-hidden"
+        className={cn(
+          'relative h-32 overflow-hidden',
+          isCtrlPressed ? 'cursor-not-allowed' : 'cursor-crosshair'
+        )}
         onClick={handleTimelineClick}
-        onMouseMove={handleDrag}
-        onMouseUp={handleDragEnd}
-        onMouseLeave={handleDragEnd}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
       >
-        <div className="absolute inset-0 bg-muted/30">
+        <div className="absolute inset-0 bg-gradient-to-b from-muted/40 to-muted/20">
           {segments.map((segment, index) => {
-            const { left, width } = getSegmentPosition(segment)
+            const left = duration > 0 ? (segment.startTime / duration) * 100 : 0
+            const width = duration > 0 ? ((segment.endTime - segment.startTime) / duration) * 100 : 0
+            
             const colors = [
-              'bg-primary/20 border-primary',
-              'bg-accent/20 border-accent',
-              'bg-secondary/20 border-secondary',
+              'bg-primary/10',
+              'bg-accent/10',
+              'bg-chart-1/10',
             ]
             const color = colors[index % colors.length]
 
             return (
               <div
                 key={segment.id}
-                className={cn(
-                  'absolute top-0 h-full border-2 transition-all',
-                  color,
-                  draggingSegment === segment.id && 'ring-2 ring-ring'
-                )}
-                style={{ left, width }}
+                className={cn('absolute top-0 h-full', color)}
+                style={{ left: `${left}%`, width: `${width}%` }}
               >
-                <div
-                  className="absolute left-0 top-0 h-full w-2 cursor-ew-resize bg-current opacity-50 hover:opacity-100"
-                  onMouseDown={(e) => {
-                    e.stopPropagation()
-                    handleDragStart(segment.id, 'start')
-                  }}
-                />
-                
-                <div className="px-2 py-1 overflow-hidden">
-                  <p className="text-xs font-medium truncate">{segment.title}</p>
+                <div className="px-3 py-2 h-full flex flex-col justify-center">
+                  <p className="text-sm font-medium truncate">{segment.title}</p>
                   <p className="text-xs text-muted-foreground font-mono">
                     {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
                   </p>
                 </div>
+              </div>
+            )
+          })}
 
+          {boundaries.map((boundary) => {
+            if (boundary === 0) return null
+            
+            const position = duration > 0 ? (boundary / duration) * 100 : 0
+            const isHovered = hoverPosition !== null && findNearestBoundary(hoverPosition, 3) === boundary
+            const isDragging = draggingBoundary === boundary
+
+            return (
+              <div
+                key={boundary}
+                className={cn(
+                  'absolute top-0 h-full w-1 transition-all group',
+                  isDragging && 'z-30',
+                  isHovered && !isDragging && 'z-20'
+                )}
+                style={{ left: `${position}%`, marginLeft: '-2px' }}
+              >
                 <div
-                  className="absolute right-0 top-0 h-full w-2 cursor-ew-resize bg-current opacity-50 hover:opacity-100"
+                  className={cn(
+                    'absolute inset-0 border-l-2 border-dashed transition-all',
+                    isDragging
+                      ? 'border-primary w-2 -ml-1'
+                      : isHovered
+                      ? isCtrlPressed
+                        ? 'border-destructive w-2 -ml-1'
+                        : 'border-primary w-2 -ml-1'
+                      : 'border-border w-1'
+                  )}
                   onMouseDown={(e) => {
-                    e.stopPropagation()
-                    handleDragStart(segment.id, 'end')
+                    if (!isCtrlPressed && boundary !== duration) {
+                      handleBoundaryMouseDown(boundary, e)
+                    }
+                  }}
+                  style={{
+                    cursor: isCtrlPressed ? 'not-allowed' : 'ew-resize',
                   }}
                 />
+                
+                {(isHovered || isDragging) && (
+                  <div
+                    className={cn(
+                      'absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg',
+                      isCtrlPressed
+                        ? 'bg-destructive text-destructive-foreground'
+                        : 'bg-primary text-primary-foreground'
+                    )}
+                  >
+                    {isCtrlPressed ? (
+                      <Minus size={12} weight="bold" />
+                    ) : (
+                      formatTime(boundary)
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
 
           <div
-            className="absolute top-0 h-full w-0.5 bg-primary pointer-events-none z-10"
+            className="absolute top-0 h-full w-0.5 bg-primary pointer-events-none z-40"
             style={{ left: `${playheadPosition}%` }}
           >
-            <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-primary rounded-full" />
+            <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-primary rounded-full shadow-lg" />
+            <div className="absolute top-0 left-0.5 w-px h-full bg-primary/50" />
           </div>
         </div>
       </Card>
 
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Scissors size={14} />
-        <span>Drag segment edges to adjust boundaries</span>
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{segments.length} segment{segments.length !== 1 ? 's' : ''}</span>
+        <span className="font-mono">Current: {formatTime(currentTime)}</span>
       </div>
     </div>
   )
