@@ -408,12 +408,7 @@ export function Timeline({
               >
                 <div
                   className={cn(
-                    'absolute inset-0 border-l-2 border-dashed transition-all',
-                    isDragging
-                      ? 'border-primary border-l-[3px]'
-                      : isHovered
-                      ? 'border-primary border-l-[3px]'
-                      : 'border-foreground/30'
+                    'absolute inset-0 -left-3 -right-3 z-20',
                   )}
                   onMouseDown={(e) => {
                     handleBoundaryMouseDown(boundary, e)
@@ -428,6 +423,17 @@ export function Timeline({
                     MozUserSelect: 'none',
                     msUserSelect: 'none',
                   }}
+                />
+                
+                <div
+                  className={cn(
+                    'absolute inset-0 border-l-2 border-dashed transition-all pointer-events-none',
+                    isDragging
+                      ? 'border-primary border-l-[3px]'
+                      : isHovered
+                      ? 'border-primary border-l-[3px]'
+                      : 'border-foreground/30'
+                  )}
                 />
                 
                 {(isHovered || isDragging) && (
