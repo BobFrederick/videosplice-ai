@@ -31,6 +31,7 @@ function App() {
     await new Promise(resolve => setTimeout(resolve, 100))
 
     const jobId = `job-${Date.now()}`
+    const videoUrl = URL.createObjectURL(file)
     
     const newJob: VideoJob = {
       id: jobId,
@@ -106,6 +107,7 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
             id: `project-${jobId}`,
             name: file.name,
             jobId,
+            videoUrl,
             duration: 450,
             transcript: mockTranscript,
             segments: [
