@@ -85,11 +85,15 @@ export function Timeline({
     return boundaries.sort((a, b) => a - b)
   }
 
-  const findNearestBoundary = (time: number, threshold: number = 2): number | null => {
+  const getInteriorBoundaries = (): number[] => {
     const boundaries = getBoundaries()
+    return boundaries.filter(b => b !== 0 && b !== duration)
+  }
+
+  const findNearestBoundary = (time: number, threshold: number = 2): number | null => {
+    const boundaries = getInteriorBoundaries()
     
     for (const boundary of boundaries) {
-      if (boundary === 0 || boundary === duration) continue
       if (Math.abs(boundary - time) <= threshold) {
         return boundary
       }
@@ -166,10 +170,6 @@ export function Timeline({
   const handleBoundaryMouseDown = (boundary: number, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
-    if (boundary === 0 || boundary === duration) {
-      return
-    }
     
     setDraggingBoundary(boundary)
   }
@@ -289,7 +289,7 @@ export function Timeline({
   }
 
   const playheadPosition = duration > 0 ? (currentTime / duration) * 100 : 0
-  const boundaries = getBoundaries()
+  const interiorBoundaries = getInteriorBoundaries()
 
   const generateTimeGrid = () => {
     const gridLines: number[] = []
@@ -400,17 +400,10 @@ export function Timeline({
             )
           })}
 
-          {boundaries.map((boundary, boundaryIndex) => {
-            if (boundary === 0 || boundary === duration) return null
-            
+          {interiorBoundaries.map((boundary, boundaryIndex) => {
             const position = duration > 0 ? (boundary / duration) * 100 : 0
             const isHovered = hoverPosition !== null && findNearestBoundary(hoverPosition, 3) === boundary
             const isDragging = draggingBoundary === boundary
-
-            const isFirst = boundaryIndex === 0 || boundary === Math.min(...boundaries.filter(b => b !== 0))
-            const isLast = boundaryIndex === boundaries.length - 1 || boundary === Math.max(...boundaries.filter(b => b !== duration))
-
-            const zIndex = isDragging ? 30 : isFirst ? 25 : isLast ? 25 : 20
 
             return (
               <div
@@ -420,7 +413,7 @@ export function Timeline({
                 )}
                 style={{ 
                   left: `${position}%`,
-                  zIndex: zIndex
+                  zIndex: isDragging ? 30 : 20
                 }}
               >
                 <div
