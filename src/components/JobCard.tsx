@@ -76,12 +76,12 @@ export function JobCard({ job, onViewDetails }: JobCardProps) {
   return (
     <Card className="transition-all hover:shadow-md">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 flex-1 min-w-0 overflow-hidden">
+        <div className="flex items-start justify-between gap-3 min-w-0">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
             <div className="p-2 rounded-lg bg-muted flex-shrink-0">
               <VideoCamera size={20} weight="duotone" className="text-muted-foreground" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               <h3 className="font-medium text-sm truncate">{job.fileName}</h3>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs text-muted-foreground font-mono">
@@ -94,7 +94,7 @@ export function JobCard({ job, onViewDetails }: JobCardProps) {
               </div>
             </div>
           </div>
-          <Badge variant="outline" className={cn('text-xs', config.color)}>
+          <Badge variant="outline" className={cn('text-xs flex-shrink-0', config.color)}>
             <Icon
               size={12}
               weight="bold"
