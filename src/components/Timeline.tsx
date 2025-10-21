@@ -319,6 +319,7 @@ export function Timeline({
 
   const playheadPosition = duration > 0 ? (currentTime / duration) * 100 : 0
   const interiorBoundaries = getInteriorBoundaries()
+  const hoveredBoundary = hoverPosition !== null ? findNearestBoundary(hoverPosition, 2) : null
 
   const generateTimeGrid = () => {
     const gridLines: number[] = []
@@ -432,7 +433,7 @@ export function Timeline({
           {interiorBoundaries.map((boundary, boundaryIndex) => {
             const isDraggingThis = draggingBoundary === boundary
             const position = duration > 0 ? (boundary / duration) * 100 : 0
-            const isHovered = hoverPosition !== null && findNearestBoundary(hoverPosition, 2) === boundary && !isDraggingThis
+            const isHovered = hoveredBoundary === boundary && !isDraggingThis
 
             return (
               <div
@@ -489,7 +490,7 @@ export function Timeline({
             )
           })}
 
-          {hoverPosition !== null && findNearestBoundary(hoverPosition, 2) === null && (
+          {hoverPosition !== null && hoveredBoundary === null && (
             <div
               className="absolute top-0 h-full w-px bg-foreground/20 pointer-events-none z-15"
               style={{ left: `${duration > 0 ? (hoverPosition / duration) * 100 : 0}%` }}
