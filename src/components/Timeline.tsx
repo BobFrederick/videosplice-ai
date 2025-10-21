@@ -156,6 +156,7 @@ export function Timeline({
   }
 
   const handleBoundaryMouseDown = (boundary: number, e: React.MouseEvent) => {
+    e.preventDefault()
     e.stopPropagation()
     
     if (boundary === 0 || boundary === duration) {
@@ -256,7 +257,7 @@ export function Timeline({
             <span>Shift+Click to add split</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Click boundary to move</span>
+            <span>Drag split to move</span>
           </div>
           <span className="text-xs text-muted-foreground font-mono">
             {formatTime(duration)}
@@ -338,7 +339,7 @@ export function Timeline({
               >
                 <div
                   className={cn(
-                    'absolute inset-0 border-l-2 border-dashed transition-all',
+                    'absolute inset-0 border-l-2 border-dashed transition-all select-none',
                     isDragging
                       ? 'border-primary border-l-[3px]'
                       : isHovered
@@ -348,8 +349,12 @@ export function Timeline({
                   onMouseDown={(e) => {
                     handleBoundaryMouseDown(boundary, e)
                   }}
+                  onDragStart={(e) => {
+                    e.preventDefault()
+                  }}
                   style={{
                     cursor: 'ew-resize',
+                    userSelect: 'none',
                   }}
                 />
                 
