@@ -24,6 +24,7 @@ export function Timeline({
   const timelineRef = useRef<HTMLDivElement>(null)
   const segmentsRef = useRef<Segment[]>(segments)
   const [draggingBoundary, setDraggingBoundary] = useState<number | null>(null)
+  const draggingSegmentsRef = useRef<{ left: Segment; right: Segment } | null>(null)
   const [hoverPosition, setHoverPosition] = useState<number | null>(null)
   const [isShiftPressed, setIsShiftPressed] = useState(false)
   const [isCtrlPressed, setIsCtrlPressed] = useState(false)
@@ -122,18 +123,15 @@ export function Timeline({
       }
 
       animationFrameId = requestAnimationFrame(() => {
-        if (!timelineRef.current) return
+        if (!timelineRef.current || !draggingSegmentsRef.current) return
         
         const rect = timelineRef.current.getBoundingClientRect()
         const x = e.clientX - rect.left
         const percentage = Math.max(0, Math.min(1, x / rect.width))
         const time = percentage * duration
         
+        const { left: leftSegment, right: rightSegment } = draggingSegmentsRef.current
         const currentSegments = segmentsRef.current
-        const leftSegment = currentSegments.find(s => Math.abs(s.endTime - draggingBoundary) < 0.01)
-        const rightSegment = currentSegments.find(s => Math.abs(s.startTime - draggingBoundary) < 0.01)
-        
-        if (!leftSegment || !rightSegment) return
         
         const minTime = leftSegment.startTime + MIN_SEGMENT_DURATION
         const maxTime = rightSegment.endTime - MIN_SEGMENT_DURATION
@@ -163,6 +161,7 @@ export function Timeline({
       }
       
       setDraggingBoundary(null)
+      draggingSegmentsRef.current = null
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
@@ -196,6 +195,12 @@ export function Timeline({
     e.preventDefault()
     e.stopPropagation()
     
+    const leftSegment = segments.find(s => s.endTime === boundary)
+    const rightSegment = segments.find(s => s.startTime === boundary)
+    
+    if (!leftSegment || !rightSegment) return
+    
+    draggingSegmentsRef.current = { left: leftSegment, right: rightSegment }
     setDraggingBoundary(boundary)
   }
 
