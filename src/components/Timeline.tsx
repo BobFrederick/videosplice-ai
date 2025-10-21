@@ -22,7 +22,7 @@ export function Timeline({
   className,
 }: TimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null)
-  const [draggingBoundary, setDraggingBoundary] = useState<number | null>(null)
+  const [draggingBoundary, setDraggingBoundary] = useState<{ originalTime: number; segmentIds: string[] } | null>(null)
   const [hoverPosition, setHoverPosition] = useState<number | null>(null)
   const [isCtrlPressed, setIsCtrlPressed] = useState(false)
   
@@ -94,7 +94,7 @@ export function Timeline({
     setHoverPosition(time)
     
     if (draggingBoundary !== null) {
-      updateBoundary(draggingBoundary, time)
+      updateBoundary(draggingBoundary.segmentIds, time)
     }
   }
 
@@ -105,9 +105,16 @@ export function Timeline({
     }
   }
 
-  const updateBoundary = (oldTime: number, newTime: number) => {
+  const updateBoundary = (segmentIds: string[], newTime: number) => {
     const boundaries = getBoundaries()
-    const index = boundaries.indexOf(oldTime)
+    
+    const leftSegment = segments.find(s => segmentIds.includes(s.id) && segments.some(other => other.startTime === s.endTime))
+    const rightSegment = segments.find(s => segmentIds.includes(s.id) && segments.some(other => other.endTime === s.startTime))
+    
+    if (!leftSegment && !rightSegment) return
+    
+    const currentBoundaryTime = leftSegment?.endTime ?? rightSegment?.startTime ?? 0
+    const index = boundaries.indexOf(currentBoundaryTime)
     
     if (index === -1) return
     
@@ -120,11 +127,13 @@ export function Timeline({
     )
 
     const updatedSegments = segments.map((segment) => {
-      if (segment.endTime === oldTime) {
-        return { ...segment, endTime: clampedTime }
-      }
-      if (segment.startTime === oldTime) {
-        return { ...segment, startTime: clampedTime }
+      if (segmentIds.includes(segment.id)) {
+        if (segment.endTime === currentBoundaryTime) {
+          return { ...segment, endTime: clampedTime }
+        }
+        if (segment.startTime === currentBoundaryTime) {
+          return { ...segment, startTime: clampedTime }
+        }
       }
       return segment
     })
@@ -134,7 +143,15 @@ export function Timeline({
 
   const handleBoundaryMouseDown = (boundary: number, e: React.MouseEvent) => {
     e.stopPropagation()
-    setDraggingBoundary(boundary)
+    
+    const affectedSegments = segments.filter(
+      s => s.startTime === boundary || s.endTime === boundary
+    )
+    
+    setDraggingBoundary({
+      originalTime: boundary,
+      segmentIds: affectedSegments.map(s => s.id)
+    })
   }
 
   const handleMouseUp = () => {
@@ -317,7 +334,7 @@ export function Timeline({
             
             const position = duration > 0 ? (boundary / duration) * 100 : 0
             const isHovered = hoverPosition !== null && findNearestBoundary(hoverPosition, 3) === boundary
-            const isDragging = draggingBoundary === boundary
+            const isDragging = draggingBoundary?.originalTime === boundary
 
             return (
               <div
