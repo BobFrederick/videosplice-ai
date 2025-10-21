@@ -357,7 +357,7 @@ export function Timeline({
         </div>
       </div>
 
-      <Card className="p-0 overflow-visible">
+      <Card className="p-0 overflow-visible pb-6">
         <div
           ref={timelineRef}
           className="relative h-24 bg-muted/30 cursor-pointer overflow-hidden"
@@ -447,6 +447,11 @@ export function Timeline({
                       'bg-primary text-primary-foreground'
                     )}
                   >
+                    {formatTime(boundary)}
+                  </div>
+                )}
+                {!isEdge && (
+                  <div className="absolute top-full mt-1 left-0 -translate-x-1/2 text-xs text-muted-foreground font-mono pointer-events-none whitespace-nowrap">
                     {formatTime(boundary)}
                   </div>
                 )}
