@@ -25,10 +25,14 @@ export function VideoPlayer({
   const [progress, setProgress] = useState(0)
   const [volume, setVolume] = useState(100)
   const [isMuted, setIsMuted] = useState(false)
+  const isSeekingRef = useRef(false)
 
   useEffect(() => {
-    if (videoRef.current && currentTime !== undefined) {
-      videoRef.current.currentTime = currentTime
+    if (videoRef.current && currentTime !== undefined && !isSeekingRef.current) {
+      const timeDiff = Math.abs(videoRef.current.currentTime - currentTime)
+      if (timeDiff > 0.5) {
+        videoRef.current.currentTime = currentTime
+      }
     }
   }, [currentTime])
 
@@ -42,6 +46,7 @@ export function VideoPlayer({
     }
 
     const handleTimeUpdate = () => {
+      isSeekingRef.current = false
       setProgress(video.currentTime)
       onTimeUpdate?.(video.currentTime)
     }
@@ -92,6 +97,7 @@ export function VideoPlayer({
 
   const handleProgressChange = (value: number[]) => {
     if (!videoRef.current) return
+    isSeekingRef.current = true
     const newTime = value[0]
     videoRef.current.currentTime = newTime
     setProgress(newTime)
