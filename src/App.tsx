@@ -43,7 +43,10 @@ function App() {
       updatedAt: Date.now(),
     }
 
-    setJobs((currentJobs) => [newJob, ...(currentJobs ?? [])])
+    setJobs((currentJobs) => {
+      const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
+      return [newJob, ...existingJobs]
+    })
     setIsProcessing(false)
 
     const progressInterval = setInterval(() => {
@@ -60,26 +63,29 @@ function App() {
       clearInterval(progressInterval)
       setUploadProgress(100)
       
-      setJobs((currentJobs) =>
-        (currentJobs ?? []).map((job) =>
+      setJobs((currentJobs) => {
+        const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
+        return existingJobs.map((job) =>
           job.id === jobId
             ? { ...job, status: 'transcribing', progress: 25, updatedAt: Date.now() }
             : job
         )
-      )
+      })
 
       setTimeout(() => {
-        setJobs((currentJobs) =>
-          (currentJobs ?? []).map((job) =>
+        setJobs((currentJobs) => {
+          const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
+          return existingJobs.map((job) =>
             job.id === jobId
               ? { ...job, status: 'analyzing', progress: 60, updatedAt: Date.now() }
               : job
           )
-        )
+        })
 
         setTimeout(() => {
-          setJobs((currentJobs) =>
-            (currentJobs ?? []).map((job) =>
+          setJobs((currentJobs) => {
+            const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
+            return existingJobs.map((job) =>
               job.id === jobId
                 ? {
                     ...job,
@@ -91,7 +97,7 @@ function App() {
                   }
                 : job
             )
-          )
+          })
 
           const mockTranscript = `Welcome to this tutorial on video editing. Today we'll cover the basics of cutting and splicing footage.
 
@@ -156,7 +162,10 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
             ],
           }
 
-          setProjects((currentProjects) => [newProject, ...(currentProjects ?? [])])
+          setProjects((currentProjects) => {
+            const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
+            return [newProject, ...existingProjects]
+          })
           
           toast.success('Video processed successfully!', {
             description: `${file.name} has been segmented into 6 chapters`,
@@ -178,41 +187,73 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
   const failedJobs = jobsList.filter((job) => job.status === 'failed')
 
   const handleViewDetails = (jobId: string) => {
-    const project = projectsList.find((p) => p.jobId === jobId)
-    if (project) {
-      setCurrentProjectId(project.id)
-    } else {
-      toast.error('Project not found', {
-        description: 'Unable to find the project for this job',
-      })
-    }
+    setProjects((currentProjects) => {
+      const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
+      const project = existingProjects.find((p) => p.jobId === jobId)
+      
+      if (project) {
+        setCurrentProjectId(project.id)
+      } else {
+        toast.error('Project not found', {
+          description: 'Unable to find the project for this job',
+        })
+      }
+      
+      return existingProjects
+    })
   }
 
   const handleProjectUpdate = (updatedProject: Project) => {
-    setProjects((currentProjects) =>
-      (currentProjects ?? []).map((p) =>
+    setProjects((currentProjects) => {
+      const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
+      return existingProjects.map((p) =>
         p.id === updatedProject.id ? updatedProject : p
       )
-    )
+    })
   }
 
   const handleProjectDelete = (projectId: string) => {
-    setProjects((currentProjects) =>
-      (currentProjects ?? []).filter((p) => p.id !== projectId)
-    )
+    setProjects((currentProjects) => {
+      const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
+      return existingProjects.filter((p) => p.id !== projectId)
+    })
   }
 
   const handleJobDelete = (jobId: string) => {
-    const project = projectsList.find((p) => p.jobId === jobId)
-    if (project) {
-      handleProjectDelete(project.id)
-    } else {
-      setJobs((currentJobs) =>
-        (currentJobs ?? []).filter((j) => j.id !== jobId)
-      )
-    }
-    toast.success('Project deleted', {
-      description: 'The project and its data have been removed',
+    setProjects((currentProjects) => {
+      const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
+      const project = existingProjects.find((p) => p.jobId === jobId)
+      
+      if (project) {
+        const updatedProjects = existingProjects.filter((p) => p.id !== project.id)
+        
+        setJobs((currentJobs) => {
+          const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
+          return existingJobs.filter((j) => j.id !== jobId)
+        })
+        
+        toast.success('Project deleted', {
+          description: 'The project and its data have been removed',
+        })
+        
+        return updatedProjects
+      }
+      
+      return existingProjects
+    })
+    
+    setJobs((currentJobs) => {
+      const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
+      const jobExists = existingJobs.some((j) => j.id === jobId)
+      
+      if (jobExists) {
+        toast.success('Job deleted', {
+          description: 'The job has been removed',
+        })
+        return existingJobs.filter((j) => j.id !== jobId)
+      }
+      
+      return existingJobs
     })
   }
 
