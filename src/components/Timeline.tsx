@@ -90,12 +90,11 @@ export function Timeline({
   }
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const time = getTimeFromPosition(e.clientX)
+    setHoverPosition(time)
+    
     if (draggingBoundary !== null) {
-      const newTime = getTimeFromPosition(e.clientX)
-      updateBoundary(draggingBoundary, newTime)
-    } else {
-      const time = getTimeFromPosition(e.clientX)
-      setHoverPosition(time)
+      updateBoundary(draggingBoundary, time)
     }
   }
 
@@ -324,22 +323,22 @@ export function Timeline({
               <div
                 key={boundary}
                 className={cn(
-                  'absolute top-0 h-full w-1 transition-all group z-20',
+                  'absolute top-0 h-full transition-all group z-20',
                   isDragging && 'z-30',
                   isHovered && !isDragging && 'z-20'
                 )}
-                style={{ left: `${position}%`, marginLeft: '-2px' }}
+                style={{ left: `${position}%` }}
               >
                 <div
                   className={cn(
-                    'absolute inset-0 border-l-2 border-dashed transition-all bg-background/50',
+                    'absolute inset-0 border-l-2 border-dashed transition-all',
                     isDragging
-                      ? 'border-primary w-2 -ml-1'
+                      ? 'border-primary border-l-[3px]'
                       : isHovered
                       ? isCtrlPressed
-                        ? 'border-destructive w-2 -ml-1'
-                        : 'border-primary w-2 -ml-1'
-                      : 'border-foreground/30 w-1'
+                        ? 'border-destructive border-l-[3px]'
+                        : 'border-primary border-l-[3px]'
+                      : 'border-foreground/30'
                   )}
                   onMouseDown={(e) => {
                     if (!isCtrlPressed && boundary !== duration) {
@@ -370,6 +369,13 @@ export function Timeline({
               </div>
             )
           })}
+
+          {hoverPosition !== null && findNearestBoundary(hoverPosition, 3) === null && (
+            <div
+              className="absolute top-0 h-full w-px bg-foreground/20 pointer-events-none z-15"
+              style={{ left: `${duration > 0 ? (hoverPosition / duration) * 100 : 0}%` }}
+            />
+          )}
 
           <div
             className="absolute top-0 h-full w-0.5 bg-primary pointer-events-none z-40"
