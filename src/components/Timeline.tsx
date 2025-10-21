@@ -25,6 +25,7 @@ export function Timeline({
 }: TimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null)
   const [draggingBoundary, setDraggingBoundary] = useState<number | null>(null)
+  const [draggingSegmentIds, setDraggingSegmentIds] = useState<{ leftId: string; rightId: string } | null>(null)
   const [hoverPosition, setHoverPosition] = useState<number | null>(null)
   const [isShiftPressed, setIsShiftPressed] = useState(false)
   const [isCtrlPressed, setIsCtrlPressed] = useState(false)
@@ -103,10 +104,12 @@ export function Timeline({
     return null
   }
 
-  const updateBoundary = useCallback((oldBoundaryTime: number, newTime: number) => {
+  const updateBoundary = useCallback((newTime: number) => {
+    if (!draggingSegmentIds) return
+    
     const currentSegments = segmentsRef.current
-    const leftSegment = currentSegments.find(s => Math.abs(s.endTime - oldBoundaryTime) < 0.5)
-    const rightSegment = currentSegments.find(s => Math.abs(s.startTime - oldBoundaryTime) < 0.5)
+    const leftSegment = currentSegments.find(s => s.id === draggingSegmentIds.leftId)
+    const rightSegment = currentSegments.find(s => s.id === draggingSegmentIds.rightId)
     
     if (!leftSegment || !rightSegment) return
     
@@ -126,7 +129,7 @@ export function Timeline({
     })
 
     onSegmentChange(updatedSegments)
-  }, [onSegmentChange])
+  }, [onSegmentChange, draggingSegmentIds])
 
   useEffect(() => {
     if (draggingBoundary === null) return
@@ -134,11 +137,12 @@ export function Timeline({
     const handleGlobalMouseMove = (e: MouseEvent) => {
       e.preventDefault()
       const time = getTimeFromPosition(e.clientX)
-      updateBoundary(draggingBoundary, time)
+      updateBoundary(time)
     }
 
     const handleGlobalMouseUp = () => {
       setDraggingBoundary(null)
+      setDraggingSegmentIds(null)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
@@ -174,7 +178,15 @@ export function Timeline({
       return
     }
     
+    const leftSegment = segments.find(s => Math.abs(s.endTime - boundary) < 0.5)
+    const rightSegment = segments.find(s => Math.abs(s.startTime - boundary) < 0.5)
+    
+    if (!leftSegment || !rightSegment) {
+      return
+    }
+    
     setDraggingBoundary(boundary)
+    setDraggingSegmentIds({ leftId: leftSegment.id, rightId: rightSegment.id })
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
   }
