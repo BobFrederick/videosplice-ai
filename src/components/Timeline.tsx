@@ -97,50 +97,60 @@ export function Timeline({
     return null
   }
 
-  const updateBoundary = useCallback((oldBoundaryTime: number, newTime: number) => {
-    const leftSegment = segments.find(s => s.endTime === oldBoundaryTime)
-    const rightSegment = segments.find(s => s.startTime === oldBoundaryTime)
-    
-    if (!leftSegment || !rightSegment) return
-    
-    const minTime = leftSegment.startTime + MIN_SEGMENT_DURATION
-    const maxTime = rightSegment.endTime - MIN_SEGMENT_DURATION
-    
-    const clampedTime = Math.max(minTime, Math.min(maxTime, newTime))
-
-    const updatedSegments = segments.map((segment) => {
-      if (segment.id === leftSegment.id) {
-        return { ...segment, endTime: clampedTime }
-      }
-      if (segment.id === rightSegment.id) {
-        return { ...segment, startTime: clampedTime }
-      }
-      return segment
-    })
-
-    onSegmentChange(updatedSegments)
-  }, [segments, onSegmentChange, MIN_SEGMENT_DURATION])
-
   useEffect(() => {
     if (draggingBoundary === null) return
 
+    document.body.style.cursor = 'ew-resize'
+    document.body.style.userSelect = 'none'
+
     const handleGlobalMouseMove = (e: MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      
+      if (!timelineRef.current) return
+      
       const time = getTimeFromPosition(e.clientX)
-      updateBoundary(draggingBoundary, time)
+      const leftSegment = segments.find(s => s.endTime === draggingBoundary)
+      const rightSegment = segments.find(s => s.startTime === draggingBoundary)
+      
+      if (!leftSegment || !rightSegment) return
+      
+      const minTime = leftSegment.startTime + MIN_SEGMENT_DURATION
+      const maxTime = rightSegment.endTime - MIN_SEGMENT_DURATION
+      
+      const clampedTime = Math.max(minTime, Math.min(maxTime, time))
+
+      const updatedSegments = segments.map((segment) => {
+        if (segment.id === leftSegment.id) {
+          return { ...segment, endTime: clampedTime }
+        }
+        if (segment.id === rightSegment.id) {
+          return { ...segment, startTime: clampedTime }
+        }
+        return segment
+      })
+
+      onSegmentChange(updatedSegments)
     }
 
-    const handleGlobalMouseUp = () => {
+    const handleGlobalMouseUp = (e: MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
       setDraggingBoundary(null)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
     }
 
-    document.addEventListener('mousemove', handleGlobalMouseMove)
-    document.addEventListener('mouseup', handleGlobalMouseUp)
+    document.addEventListener('mousemove', handleGlobalMouseMove, { capture: true })
+    document.addEventListener('mouseup', handleGlobalMouseUp, { capture: true })
 
     return () => {
-      document.removeEventListener('mousemove', handleGlobalMouseMove)
-      document.removeEventListener('mouseup', handleGlobalMouseUp)
+      document.removeEventListener('mousemove', handleGlobalMouseMove, { capture: true })
+      document.removeEventListener('mouseup', handleGlobalMouseUp, { capture: true })
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
     }
-  }, [draggingBoundary, updateBoundary])
+  }, [draggingBoundary, segments, onSegmentChange])
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (draggingBoundary !== null) return
