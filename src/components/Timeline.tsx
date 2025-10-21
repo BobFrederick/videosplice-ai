@@ -366,11 +366,11 @@ export function Timeline({
             const width = duration > 0 ? ((segment.endTime - segment.startTime) / duration) * 100 : 0
             
             const colors = [
-              'bg-primary/20 border-primary/40',
-              'bg-accent/20 border-accent/40',
-              'bg-chart-1/20 border-chart-1/40',
-              'bg-chart-2/20 border-chart-2/40',
-              'bg-chart-3/20 border-chart-3/40',
+              'bg-primary/20',
+              'bg-accent/20',
+              'bg-chart-1/20',
+              'bg-chart-2/20',
+              'bg-chart-3/20',
             ]
             const color = colors[index % colors.length]
 
@@ -378,7 +378,11 @@ export function Timeline({
               <div
                 key={segment.id}
                 className={cn('absolute top-0 h-full z-10', color)}
-                style={{ left: `${left}%`, width: `${width}%` }}
+                style={{ 
+                  left: `${left}%`, 
+                  width: `${width}%`,
+                  borderRight: 'none'
+                }}
               >
                 <div className="px-3 py-2 h-full flex flex-col justify-center">
                   <p className="text-sm font-medium truncate text-foreground">{segment.title}</p>
