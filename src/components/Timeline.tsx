@@ -363,7 +363,7 @@ export function Timeline({
           })}
           {segments.map((segment, index) => {
             const left = duration > 0 ? (segment.startTime / duration) * 100 : 0
-            const width = duration > 0 ? ((segment.endTime - segment.startTime) / duration) * 100 : 0
+            const right = duration > 0 ? ((duration - segment.endTime) / duration) * 100 : 0
             
             const colors = [
               'bg-primary/20',
@@ -380,7 +380,7 @@ export function Timeline({
                 className={cn('absolute top-0 h-full z-10', color)}
                 style={{ 
                   left: `${left}%`, 
-                  width: `${width}%`,
+                  right: `${right}%`,
                 }}
               >
                 <div className="px-3 py-2 h-full flex flex-col justify-center">
