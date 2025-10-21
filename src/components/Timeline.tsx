@@ -113,9 +113,16 @@ export function Timeline({
     document.body.style.userSelect = 'none'
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      
       if (!timelineRef.current || draggingBoundary === null) return
       
-      const time = getTimeFromPosition(e.clientX)
+      const rect = timelineRef.current.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const percentage = Math.max(0, Math.min(1, x / rect.width))
+      const time = percentage * duration
+      
       const currentSegments = segmentsRef.current
       const leftSegment = currentSegments.find(s => s.endTime === draggingBoundary)
       const rightSegment = currentSegments.find(s => s.startTime === draggingBoundary)
@@ -140,18 +147,20 @@ export function Timeline({
       onSegmentChange(updatedSegments)
     }
 
-    const handleGlobalMouseUp = () => {
+    const handleGlobalMouseUp = (e: MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
       setDraggingBoundary(null)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
 
-    document.addEventListener('mousemove', handleGlobalMouseMove, { capture: true })
-    document.addEventListener('mouseup', handleGlobalMouseUp, { capture: true })
+    window.addEventListener('mousemove', handleGlobalMouseMove, true)
+    window.addEventListener('mouseup', handleGlobalMouseUp, true)
 
     return () => {
-      document.removeEventListener('mousemove', handleGlobalMouseMove, { capture: true })
-      document.removeEventListener('mouseup', handleGlobalMouseUp, { capture: true })
+      window.removeEventListener('mousemove', handleGlobalMouseMove, true)
+      window.removeEventListener('mouseup', handleGlobalMouseUp, true)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
