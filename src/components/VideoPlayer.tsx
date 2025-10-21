@@ -130,6 +130,8 @@ export function VideoPlayer({
             ref={videoRef}
             src={src}
             className="w-full h-full object-contain"
+            preload="metadata"
+            playsInline
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">No video loaded</div>
