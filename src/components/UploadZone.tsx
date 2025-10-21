@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { UploadSimple, VideoCamera, CheckCircle, Warning } from '@phosphor-icons/react'
+import { UploadSimple, VideoCamera, CheckCircle, Warning, Spinner } from '@phosphor-icons/react'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
@@ -8,9 +8,10 @@ interface UploadZoneProps {
   onUpload: (file: File) => void
   isUploading: boolean
   uploadProgress: number
+  isProcessing?: boolean
 }
 
-export function UploadZone({ onUpload, isUploading, uploadProgress }: UploadZoneProps) {
+export function UploadZone({ onUpload, isUploading, uploadProgress, isProcessing = false }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -73,7 +74,7 @@ export function UploadZone({ onUpload, isUploading, uploadProgress }: UploadZone
         'relative overflow-hidden transition-all duration-200',
         isDragging && 'border-accent bg-accent/5',
         error && 'border-destructive',
-        isUploading && 'pointer-events-none'
+        (isUploading || isProcessing) && 'pointer-events-none'
       )}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
@@ -91,6 +92,8 @@ export function UploadZone({ onUpload, isUploading, uploadProgress }: UploadZone
         <div className="flex flex-col items-center gap-4 text-center">
           {error ? (
             <Warning size={48} weight="duotone" className="text-destructive" />
+          ) : isProcessing ? (
+            <Spinner size={48} weight="duotone" className="text-primary animate-spin" />
           ) : isUploading ? (
             <VideoCamera size={48} weight="duotone" className="text-primary animate-pulse" />
           ) : (
@@ -100,6 +103,8 @@ export function UploadZone({ onUpload, isUploading, uploadProgress }: UploadZone
           <div className="space-y-2">
             {error ? (
               <p className="text-sm font-medium text-destructive">{error}</p>
+            ) : isProcessing ? (
+              <p className="text-sm font-medium text-foreground">Processing file...</p>
             ) : isUploading ? (
               <>
                 <p className="text-sm font-medium text-foreground">Uploading video...</p>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useKV } from '@github/spark/hooks'
-import { Brain, Plus } from '@phosphor-icons/react'
+import { Brain, Plus, Spinner } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Toaster } from '@/components/ui/sonner'
@@ -14,12 +14,16 @@ function App() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [showUpload, setShowUpload] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const jobsList = jobs ?? []
 
   const handleUpload = async (file: File) => {
     setIsUploading(true)
     setUploadProgress(0)
+    setIsProcessing(true)
+
+    await new Promise(resolve => setTimeout(resolve, 100))
 
     const jobId = `job-${Date.now()}`
     
@@ -34,6 +38,7 @@ function App() {
     }
 
     setJobs((currentJobs) => [newJob, ...(currentJobs ?? [])])
+    setIsProcessing(false)
 
     const progressInterval = setInterval(() => {
       setUploadProgress((prev) => {
@@ -132,6 +137,7 @@ function App() {
               onUpload={handleUpload}
               isUploading={isUploading}
               uploadProgress={uploadProgress}
+              isProcessing={isProcessing}
             />
           )}
 
