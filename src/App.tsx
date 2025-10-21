@@ -8,6 +8,7 @@ import { UploadZone } from '@/components/UploadZone'
 import { UploadPreview } from '@/components/UploadPreview'
 import { JobCard } from '@/components/JobCard'
 import { ProjectView } from '@/components/ProjectView'
+import { SettingsDialog } from '@/components/SettingsDialog'
 import type { VideoJob, Project } from '@/lib/types'
 import { toast } from 'sonner'
 
@@ -310,6 +311,38 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
     })
   }
 
+  const handleJobRetry = (jobId: string) => {
+    setJobs((currentJobs) => {
+      const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
+      const job = existingJobs.find((j) => j.id === jobId)
+      
+      if (!job) return existingJobs
+      
+      const updatedJobs = existingJobs.map((j) =>
+        j.id === jobId
+          ? { ...j, status: 'queued' as const, progress: 0, errorMessage: undefined, updatedAt: Date.now() }
+          : j
+      )
+      
+      toast.success('Job queued for retry', {
+        description: 'The job will be processed again',
+      })
+      
+      setTimeout(() => {
+        setJobs((currentJobs) => {
+          const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
+          return existingJobs.map((j) =>
+            j.id === jobId
+              ? { ...j, status: 'transcribing' as const, progress: 25, updatedAt: Date.now() }
+              : j
+          )
+        })
+      }, 1000)
+      
+      return updatedJobs
+    })
+  }
+
   if (currentProject) {
     return (
       <ProjectView
@@ -337,10 +370,13 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
               </div>
             </div>
             
-            <Button onClick={() => setShowUpload(!showUpload)}>
-              <Plus size={16} weight="bold" className="mr-2" />
-              New Upload
-            </Button>
+            <div className="flex items-center gap-2">
+              <SettingsDialog />
+              <Button onClick={() => setShowUpload(!showUpload)}>
+                <Plus size={16} weight="bold" className="mr-2" />
+                New Upload
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -419,7 +455,13 @@ Finally, we'll cover audio mixing. Good audio is just as important as good video
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   {failedJobs.map((job) => (
-                    <JobCard key={job.id} job={job} onViewDetails={handleViewDetails} />
+                    <JobCard 
+                      key={job.id} 
+                      job={job} 
+                      onViewDetails={handleViewDetails}
+                      onRetry={handleJobRetry}
+                      onDelete={handleJobDelete}
+                    />
                   ))}
                 </div>
               )}

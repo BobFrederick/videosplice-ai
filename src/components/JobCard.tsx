@@ -1,4 +1,4 @@
-import { VideoCamera, CheckCircle, XCircle, Spinner, Clock, Trash, FileText } from '@phosphor-icons/react'
+import { VideoCamera, CheckCircle, XCircle, Spinner, Clock, Trash, FileText, ArrowClockwise } from '@phosphor-icons/react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -10,6 +10,7 @@ interface JobCardProps {
   job: VideoJob
   onViewDetails?: (jobId: string) => void
   onDelete?: (jobId: string) => void
+  onRetry?: (jobId: string) => void
 }
 
 const statusConfig = {
@@ -69,7 +70,7 @@ function formatDate(timestamp: number): string {
   return date.toLocaleDateString()
 }
 
-export function JobCard({ job, onViewDetails, onDelete }: JobCardProps) {
+export function JobCard({ job, onViewDetails, onDelete, onRetry }: JobCardProps) {
   const config = statusConfig[job.status]
   const Icon = config.icon
   const isProcessing = ['uploading', 'transcribing', 'analyzing', 'segmenting'].includes(job.status)
@@ -123,8 +124,35 @@ export function JobCard({ job, onViewDetails, onDelete }: JobCardProps) {
           </div>
         )}
 
-        {job.status === 'failed' && job.errorMessage && (
-          <p className="text-xs text-destructive">{job.errorMessage}</p>
+        {job.status === 'failed' && (
+          <div className="space-y-2">
+            {job.errorMessage && (
+              <p className="text-xs text-destructive">{job.errorMessage}</p>
+            )}
+            <div className="flex items-center gap-2">
+              {onRetry && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onRetry(job.id)}
+                  className="flex-1"
+                >
+                  <ArrowClockwise size={16} weight="bold" className="mr-2" />
+                  Retry
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onDelete(job.id)}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash size={16} weight="bold" />
+                </Button>
+              )}
+            </div>
+          </div>
         )}
 
         {job.status === 'completed' && (

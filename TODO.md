@@ -29,10 +29,22 @@
 - [x] Preview confirmation workflow
 - [x] Custom transcript indicator in job cards
 - [x] Feature 1: Video Upload & Intake (COMPLETE)
+- [x] LLM integration with real spark.llm API
+- [x] Settings dialog for LLM configuration
+- [x] Model selection (GPT-4o, GPT-4o-mini)
+- [x] Custom prompt template editing
+- [x] LLM connection testing
+- [x] Transcript viewer with edit capability
+- [x] Copy transcript to clipboard
+- [x] Settings persistence with useKV
+- [x] Error handling with retry logic
+- [x] Retry button for failed jobs
+- [x] Job card skeleton loading states
+- [x] Improved error messages
 
 ## In Progress 🚧
-- [ ] LLM integration for auto-generating segments
-- [ ] Real video file handling
+- [ ] Real video file handling with backend
+- [ ] Backend API integration
 
 ## To Do - Essential Features 📋
 
@@ -51,8 +63,9 @@
 - [ ] Integrate Whisper API or cloud speech-to-text
 - [ ] Generate timestamped transcript
 - [x] Display transcript in UI
-- [ ] Support transcript file upload (.srt, .vtt, txt)
-- [ ] Editable transcript before segmentation
+- [x] Support transcript file upload (.srt, .vtt, txt)
+- [x] Editable transcript before segmentation
+- [x] Copy transcript to clipboard
 - [ ] Language detection/selection
 
 ### Feature 3: AI-Powered Chapter Detection
@@ -60,9 +73,11 @@
 - [x] Send transcript to LLM using spark.llm
 - [x] Parse LLM response for segments
 - [x] Display AI suggestions to user
-- [ ] Test with real LLM (currently has mock implementation)
-- [ ] Allow regeneration with different prompts
-- [ ] Confidence scores for segments
+- [x] Test with real LLM (COMPLETE - now using real spark.llm API)
+- [x] Allow regeneration with different prompts (via settings)
+- [x] Settings dialog for model and prompt customization
+- [x] LLM connection testing
+- [ ] Confidence scores for segments (future enhancement)
 
 ### Feature 4: Segment Review & Editing
 - [x] Video player component
@@ -73,8 +88,10 @@
 - [x] Edit segment titles/descriptions
 - [x] Add new segments manually
 - [x] Remove segments
-- [ ] Auto-save drafts
 - [x] Show duration for each segment
+- [x] Editable transcript before segmentation
+- [x] Copy transcript functionality
+- [ ] Auto-save drafts (manual save implemented)
 - [ ] Show file size estimates
 
 ### Feature 5: Video Splitting & Export
@@ -90,20 +107,23 @@
 - [x] Job queue UI with status
 - [x] Progress percentage display
 - [x] Real-time status updates (currently simulated)
+- [x] Failed job error messages with retry
+- [x] Retry functionality for failed jobs
 - [ ] Queue position display
 - [ ] Estimated completion times
-- [ ] Failed job error messages with retry
 - [ ] Job history (30 day retention)
 - [ ] WebSocket/SSE for real-time updates
 
 ### Feature 7: LLM Configuration & Management
-- [ ] Settings page/modal
-- [ ] LLM provider selection UI
-- [ ] Model selection dropdown
-- [ ] Test connection button
-- [ ] Prompt template editor
-- [ ] Configuration validation
-- [ ] Save settings to storage
+- [x] Settings page/modal
+- [x] LLM provider selection UI (OpenAI, Anthropic, Local)
+- [x] Model selection dropdown
+- [x] Test connection button
+- [x] Prompt template editor
+- [x] Configuration validation
+- [x] Save settings to storage (useKV)
+- [ ] API key management (if needed)
+- [ ] Usage tracking
 
 ### Feature 8: User & Team Management
 - [ ] Authentication system
@@ -123,21 +143,22 @@
 - [x] Timeline editor with draggable markers
 - [x] Segment editor panel
 - [x] Project view layout
+- [x] Settings dialog with LLM configuration
+- [x] Transcript viewer with edit/copy functionality
+- [x] Job card skeleton loading states
+- [x] Retry buttons for failed jobs
+- [x] Error display in job cards
 
 ## UI Components Still Needed 🎨
-- [ ] Transcript display with sync highlighting
-- [ ] Segment cards with thumbnails
-- [ ] Settings dialog/page
-- [ ] Error states and retry buttons
-- [ ] Loading skeletons for job cards
-- [ ] Empty state improvements
+- [ ] Segment cards with thumbnails for export view
+- [ ] Empty state improvements with illustrations
 
 ## Technical Debt & Improvements 🔧
+- [x] Add proper error handling throughout
+- [x] Implement retry logic for failed jobs
+- [x] Add loading states for all async operations
 - [ ] Replace mock upload with real file handling
 - [ ] Replace setTimeout simulations with actual processing
-- [ ] Add proper error handling throughout
-- [ ] Implement retry logic for failed jobs
-- [ ] Add loading states for all async operations
 - [ ] Optimize performance for large job lists
 - [ ] Add keyboard shortcuts for common actions
 - [ ] Implement proper routing for multi-page nav
@@ -150,7 +171,9 @@
 1. ✅ Build video player component with timeline
 2. ✅ Implement segment editor component
 3. ✅ Create segment review/editing interface
-4. Test LLM integration with real transcript
-5. Add settings page for LLM configuration
-6. Implement real video file handling
-7. Add waveform visualization to timeline
+4. ✅ Test LLM integration with real transcript
+5. ✅ Add settings page for LLM configuration
+6. Add error handling and retry logic
+7. Implement real video file handling
+8. Add waveform visualization to timeline
+9. Build export/download functionality

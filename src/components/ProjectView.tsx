@@ -1,12 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useKV } from '@github/spark/hooks'
 import { ArrowLeft, Brain, DownloadSimple, Spinner, Trash } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { VideoPlayer } from '@/components/VideoPlayer'
 import { Timeline } from '@/components/Timeline'
 import { SegmentEditor } from '@/components/SegmentEditor'
+import { TranscriptViewer } from '@/components/TranscriptViewer'
 import type { Project, Segment } from '@/lib/types'
+import type { LLMSettings } from '@/components/SettingsDialog'
+import { retryWithBackoff, parseErrorMessage } from '@/lib/helpers'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -28,6 +33,10 @@ interface ProjectViewProps {
 }
 
 export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete }: ProjectViewProps) {
+  const [settings] = useKV<LLMSettings>('llm-settings', {
+    model: 'gpt-4o',
+    provider: 'openai',
+  })
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(project.duration || 450)
   const [selectedSegmentId, setSelectedSegmentId] = useState<string>()
@@ -36,6 +45,10 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
 
   const handleSegmentChange = (segments: Segment[]) => {
     onProjectUpdate({ ...project, segments })
+  }
+
+  const handleTranscriptUpdate = (transcript: string) => {
+    onProjectUpdate({ ...project, transcript })
   }
 
   const handleSegmentSelect = (segment: Segment) => {
@@ -59,7 +72,7 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
       const transcriptText = project.transcript
       const videoDuration = duration
       
-      const promptText = `You are a video segmentation expert. Analyze the following transcript and identify logical chapter boundaries where topic changes occur.
+      const defaultPrompt = `You are a video segmentation expert. Analyze the following transcript and identify logical chapter boundaries where topic changes occur.
 
 For each segment, provide:
 1. A descriptive title (3-7 words)
@@ -68,9 +81,9 @@ For each segment, provide:
 4. Brief description of the segment content
 
 Transcript:
-${transcriptText}
+{transcript}
 
-Video duration: ${videoDuration} seconds
+Video duration: {duration} seconds
 
 Return the result as a valid JSON object with a single property called "segments" that contains an array of segment objects.
 
@@ -86,22 +99,45 @@ Format:
   ]
 }`
 
-      const response = await window.spark.llm(promptText, 'gpt-4o', true)
+      const promptTemplate = settings?.customPrompt || defaultPrompt
+      const promptText = promptTemplate
+        .replace('{transcript}', transcriptText)
+        .replace('{duration}', String(videoDuration))
+
+      const model = settings?.model || 'gpt-4o'
+      
+      const response = await retryWithBackoff(async () => {
+        return await spark.llm(promptText, model, true)
+      }, 3, 2000)
+      
       const result = JSON.parse(response)
+
+      if (!result.segments || !Array.isArray(result.segments)) {
+        throw new Error('Invalid response format from LLM')
+      }
 
       const segments: Segment[] = result.segments.map((seg: any, index: number) => ({
         id: `segment-${Date.now()}-${index}`,
-        title: seg.title,
-        startTime: seg.startTime,
-        endTime: seg.endTime,
-        description: seg.description,
+        title: seg.title || 'Untitled Segment',
+        startTime: seg.startTime || 0,
+        endTime: seg.endTime || videoDuration,
+        description: seg.description || '',
       }))
 
+      if (segments.length === 0) {
+        throw new Error('No segments generated')
+      }
+
       handleSegmentChange(segments)
-      toast.success(`Generated ${segments.length} segments`)
+      toast.success(`Generated ${segments.length} segments`, {
+        description: `Using ${model}`,
+      })
     } catch (error) {
       console.error('Failed to analyze transcript:', error)
-      toast.error('Failed to analyze transcript')
+      const errorMessage = parseErrorMessage(error)
+      toast.error('Failed to analyze transcript', {
+        description: errorMessage,
+      })
     } finally {
       setIsAnalyzing(false)
     }
@@ -221,18 +257,11 @@ Format:
             />
 
             {project.transcript && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Transcript</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="max-h-64 overflow-y-auto">
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                      {project.transcript}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <TranscriptViewer
+                transcript={project.transcript}
+                onTranscriptUpdate={handleTranscriptUpdate}
+                editable={true}
+              />
             )}
           </div>
 
