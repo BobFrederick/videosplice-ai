@@ -38,7 +38,7 @@ export function VideoPlayer({
 
   useEffect(() => {
     const video = videoRef.current
-    if (!video) return
+    if (!video || !src) return
 
     const handleLoadedMetadata = () => {
       setDuration(video.duration)
@@ -55,16 +55,28 @@ export function VideoPlayer({
       setIsPlaying(false)
     }
 
+    const handleLoadStart = () => {
+      video.load()
+    }
+
     video.addEventListener('loadedmetadata', handleLoadedMetadata)
     video.addEventListener('timeupdate', handleTimeUpdate)
     video.addEventListener('ended', handleEnded)
+    video.addEventListener('loadstart', handleLoadStart)
+
+    if (video.readyState >= 1) {
+      handleLoadedMetadata()
+    } else {
+      video.load()
+    }
 
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata)
       video.removeEventListener('timeupdate', handleTimeUpdate)
       video.removeEventListener('ended', handleEnded)
+      video.removeEventListener('loadstart', handleLoadStart)
     }
-  }, [onTimeUpdate, onDurationChange])
+  }, [src, onTimeUpdate, onDurationChange])
 
   const togglePlay = () => {
     if (!videoRef.current) return
@@ -120,12 +132,9 @@ export function VideoPlayer({
             className="w-full h-full object-contain"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-            No video loaded
-          </div>
+          <div className="w-full h-full flex items-center justify-center text-muted-foreground">No video loaded</div>
         )}
       </div>
-
       <div className="space-y-3">
         <Slider
           value={[progress]}
@@ -180,5 +189,5 @@ export function VideoPlayer({
         </div>
       </div>
     </div>
-  )
+  );
 }
