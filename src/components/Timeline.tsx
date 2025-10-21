@@ -360,7 +360,7 @@ export function Timeline({
       <Card className="p-0 overflow-visible">
         <div
           ref={timelineRef}
-          className="relative h-24 bg-muted/30 cursor-pointer overflow-hidden mb-6"
+          className="relative h-24 bg-muted/30 cursor-pointer overflow-hidden"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onClick={handleTimelineClick}
@@ -450,11 +450,6 @@ export function Timeline({
                     {formatTime(boundary)}
                   </div>
                 )}
-                {!isEdge && (
-                  <div className="absolute top-full mt-1 left-0 -translate-x-1/2 text-xs text-muted-foreground font-mono pointer-events-none whitespace-nowrap">
-                    {formatTime(boundary)}
-                  </div>
-                )}
               </div>
             )
           })}
@@ -478,6 +473,31 @@ export function Timeline({
               <Plus size={14} weight="bold" className="text-primary-foreground" />
             </button>
             <div className="absolute top-0 left-0.5 w-px h-full bg-primary/50 pointer-events-none" />
+          </div>
+        </div>
+
+        <div className="relative h-6 px-0">
+          <div className="absolute top-0 left-0 w-full h-px bg-border" />
+          
+          <div className="absolute top-0 left-0 text-xs text-muted-foreground font-mono">
+            {formatTime(0)}
+          </div>
+          
+          {timeGrid.map((time) => {
+            const position = duration > 0 ? (time / duration) * 100 : 0
+            return (
+              <div
+                key={`time-label-${time}`}
+                className="absolute top-0 text-xs text-muted-foreground font-mono"
+                style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
+              >
+                {formatTime(time)}
+              </div>
+            )
+          })}
+          
+          <div className="absolute top-0 right-0 text-xs text-muted-foreground font-mono">
+            {formatTime(duration)}
           </div>
         </div>
       </Card>
