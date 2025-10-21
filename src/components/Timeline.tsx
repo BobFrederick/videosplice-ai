@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { Plus } from '@phosphor-icons/react'
+import { Plus, Trash } from '@phosphor-icons/react'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { Segment } from '@/lib/types'
@@ -22,9 +22,11 @@ export function Timeline({
   className,
 }: TimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null)
-  const [draggingBoundary, setDraggingBoundary] = useState<{ originalTime: number; segmentIds: string[] } | null>(null)
+  const [draggingBoundary, setDraggingBoundary] = useState<number | null>(null)
   const [hoverPosition, setHoverPosition] = useState<number | null>(null)
   const [isShiftPressed, setIsShiftPressed] = useState(false)
+  const [isCtrlPressed, setIsCtrlPressed] = useState(false)
+  const [originalSegments] = useState<Segment[]>(segments)
   
   const MIN_SEGMENT_DURATION = 5
 
@@ -33,11 +35,17 @@ export function Timeline({
       if (e.key === 'Shift') {
         setIsShiftPressed(true)
       }
+      if (e.key === 'Control' || e.key === 'Meta') {
+        setIsCtrlPressed(true)
+      }
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'Shift') {
         setIsShiftPressed(false)
+      }
+      if (e.key === 'Control' || e.key === 'Meta') {
+        setIsCtrlPressed(false)
       }
     }
 
@@ -94,7 +102,7 @@ export function Timeline({
     setHoverPosition(time)
     
     if (draggingBoundary !== null) {
-      updateBoundary(draggingBoundary.segmentIds, time)
+      updateBoundary(draggingBoundary, time)
     }
   }
 
@@ -105,50 +113,27 @@ export function Timeline({
     }
   }
 
-  const updateBoundary = (segmentIds: string[], newTime: number) => {
-    if (segmentIds.length === 0) return
-    
-    const currentBoundaryTime = draggingBoundary?.originalTime ?? 0
-    const delta = newTime - currentBoundaryTime
-    
-    const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime)
-    
-    const leftSegment = segments.find(s => s.endTime === currentBoundaryTime)
-    const rightSegment = segments.find(s => s.startTime === currentBoundaryTime)
+  const updateBoundary = (oldBoundaryTime: number, newTime: number) => {
+    const leftSegment = segments.find(s => s.endTime === oldBoundaryTime)
+    const rightSegment = segments.find(s => s.startTime === oldBoundaryTime)
     
     if (!leftSegment || !rightSegment) return
     
-    const leftSegmentIndex = sortedSegments.findIndex(s => s.id === leftSegment.id)
-    const rightSegmentIndex = sortedSegments.findIndex(s => s.id === rightSegment.id)
-    
-    const newLeftEndTime = leftSegment.endTime + delta
-    
-    if (newLeftEndTime <= leftSegment.startTime + MIN_SEGMENT_DURATION) {
+    if (newTime <= leftSegment.startTime + MIN_SEGMENT_DURATION) {
       return
     }
     
-    if (newLeftEndTime >= duration - MIN_SEGMENT_DURATION) {
+    if (newTime >= rightSegment.endTime - MIN_SEGMENT_DURATION) {
       return
     }
 
-    const updatedSegments = segments.map((segment, idx) => {
-      const sortedIdx = sortedSegments.findIndex(s => s.id === segment.id)
-      
-      if (sortedIdx === leftSegmentIndex) {
-        return { ...segment, endTime: newLeftEndTime }
+    const updatedSegments = segments.map((segment) => {
+      if (segment.id === leftSegment.id) {
+        return { ...segment, endTime: newTime }
       }
-      
-      if (sortedIdx > leftSegmentIndex) {
-        const newStartTime = segment.startTime + delta
-        const newEndTime = segment.endTime + delta
-        
-        if (newEndTime > duration) {
-          return segment
-        }
-        
-        return { ...segment, startTime: newStartTime, endTime: newEndTime }
+      if (segment.id === rightSegment.id) {
+        return { ...segment, startTime: newTime }
       }
-      
       return segment
     })
 
@@ -163,14 +148,7 @@ export function Timeline({
       return
     }
     
-    const affectedSegments = segments.filter(
-      s => s.startTime === boundary || s.endTime === boundary
-    )
-    
-    setDraggingBoundary({
-      originalTime: boundary,
-      segmentIds: affectedSegments.map(s => s.id)
-    })
+    setDraggingBoundary(boundary)
   }
 
   const handleMouseUp = () => {
@@ -181,10 +159,77 @@ export function Timeline({
     const time = getTimeFromPosition(e.clientX)
     const nearestBoundary = findNearestBoundary(time, 3)
 
-    if (nearestBoundary !== null && !isShiftPressed) {
+    if (isCtrlPressed) {
+      const clickedSegment = segments.find(
+        (seg) => time >= seg.startTime && time <= seg.endTime
+      )
+      
+      if (clickedSegment) {
+        removeSegment(clickedSegment)
+      }
+    } else if (nearestBoundary !== null && !isShiftPressed) {
       onSeek(nearestBoundary)
     } else if (isShiftPressed) {
       addBoundary(time)
+    }
+  }
+
+  const removeSegment = (segmentToRemove: Segment) => {
+    const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime)
+    const index = sortedSegments.findIndex((seg) => seg.id === segmentToRemove.id)
+    
+    if (index === -1) return
+    
+    const isFirstOriginalSegment = 
+      index === 0 && 
+      segmentToRemove.startTime === 0 &&
+      originalSegments.some(s => s.id === segmentToRemove.id && s.startTime === 0)
+    
+    const isLastOriginalSegment = 
+      index === sortedSegments.length - 1 && 
+      segmentToRemove.endTime === duration &&
+      originalSegments.some(s => s.id === segmentToRemove.id && s.endTime === duration)
+    
+    if (isFirstOriginalSegment || isLastOriginalSegment) {
+      return
+    }
+    
+    if (segments.length <= 1) {
+      return
+    }
+    
+    const segmentBefore = sortedSegments[index - 1]
+    const segmentAfter = sortedSegments[index + 1]
+    
+    if (segmentBefore && segmentAfter) {
+      const updatedSegments = segments
+        .filter((seg) => seg.id !== segmentToRemove.id)
+        .map((seg) =>
+          seg.id === segmentBefore.id
+            ? { ...seg, endTime: segmentAfter.startTime }
+            : seg.id === segmentAfter.id
+            ? { ...seg, startTime: segmentBefore.endTime }
+            : seg
+        )
+      onSegmentChange(updatedSegments)
+    } else if (segmentBefore && !segmentAfter) {
+      const updatedSegments = segments
+        .filter((seg) => seg.id !== segmentToRemove.id)
+        .map((seg) =>
+          seg.id === segmentBefore.id
+            ? { ...seg, endTime: segmentToRemove.endTime }
+            : seg
+        )
+      onSegmentChange(updatedSegments)
+    } else if (!segmentBefore && segmentAfter) {
+      const updatedSegments = segments
+        .filter((seg) => seg.id !== segmentToRemove.id)
+        .map((seg) =>
+          seg.id === segmentAfter.id
+            ? { ...seg, startTime: segmentToRemove.startTime }
+            : seg
+        )
+      onSegmentChange(updatedSegments)
     }
   }
 
@@ -257,6 +302,10 @@ export function Timeline({
             <span>Shift+Click to add split</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Trash size={14} weight="bold" />
+            <span>Ctrl+Click to remove segment</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>Drag split to move</span>
           </div>
           <span className="text-xs text-muted-foreground font-mono">
@@ -268,13 +317,19 @@ export function Timeline({
       <Card
         ref={timelineRef}
         className={cn(
-          'relative h-32 overflow-visible pt-6 p-0',
-          isShiftPressed ? 'cursor-crosshair' : 'cursor-pointer'
+          'relative h-32 overflow-visible pt-6 p-0 select-none',
+          isShiftPressed ? 'cursor-crosshair' : isCtrlPressed ? 'cursor-not-allowed' : 'cursor-pointer'
         )}
         onClick={handleTimelineClick}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        style={{
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
+          msUserSelect: 'none',
+        }}
       >
         <div className="absolute inset-0 bg-muted/20 overflow-hidden">
           {timeGrid.map((time) => {
@@ -325,7 +380,7 @@ export function Timeline({
             
             const position = duration > 0 ? (boundary / duration) * 100 : 0
             const isHovered = hoverPosition !== null && findNearestBoundary(hoverPosition, 3) === boundary
-            const isDragging = draggingBoundary?.originalTime === boundary
+            const isDragging = draggingBoundary === boundary
 
             return (
               <div
@@ -339,7 +394,7 @@ export function Timeline({
               >
                 <div
                   className={cn(
-                    'absolute inset-0 border-l-2 border-dashed transition-all select-none',
+                    'absolute inset-0 border-l-2 border-dashed transition-all',
                     isDragging
                       ? 'border-primary border-l-[3px]'
                       : isHovered
@@ -355,13 +410,16 @@ export function Timeline({
                   style={{
                     cursor: 'ew-resize',
                     userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    MozUserSelect: 'none',
+                    msUserSelect: 'none',
                   }}
                 />
                 
                 {(isHovered || isDragging) && (
                   <div
                     className={cn(
-                      'absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg z-50',
+                      'absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg z-50 pointer-events-none',
                       'bg-primary text-primary-foreground'
                     )}
                   >
