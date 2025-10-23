@@ -44,6 +44,7 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
   const [isGenerating, setIsGenerating] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [showExportView, setShowExportView] = useState(false)
+  const [showRegenerateDialog, setShowRegenerateDialog] = useState(false)
 
   // Update project duration when it changes from video metadata
   useEffect(() => {
@@ -216,7 +217,7 @@ Format:
               {project.transcript && (
                 <Button
                   variant="outline"
-                  onClick={handleAnalyzeTranscript}
+                  onClick={() => setShowRegenerateDialog(true)}
                   disabled={isAnalyzing}
                 >
                   {isAnalyzing ? (
@@ -224,7 +225,7 @@ Format:
                   ) : (
                     <Brain size={16} weight="bold" className="mr-2" />
                   )}
-                  {isAnalyzing ? 'Analyzing...' : 'Auto-Generate Segments'}
+                  {isAnalyzing ? 'Analyzing...' : 'Re-Generate Segments'}
                 </Button>
               )}
               <Button
@@ -273,6 +274,29 @@ Format:
           </div>
         </div>
       </header>
+
+      {/* Re-Generate Segments Confirmation Dialog */}
+      <AlertDialog open={showRegenerateDialog} onOpenChange={setShowRegenerateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Re-Generate Segments?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will use AI to analyze your transcript and create new segments. Any manual edits you've made to the current segments will be lost. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowRegenerateDialog(false)
+                handleAnalyzeTranscript()
+              }}
+            >
+              Re-Generate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <main className="container mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
