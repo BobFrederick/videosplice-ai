@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
+import { DeleteProjectDialog } from '@/components/DeleteProjectDialog'
 import type { VideoJob } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -142,14 +143,18 @@ export function JobCard({ job, onViewDetails, onDelete, onRetry }: JobCardProps)
                 </Button>
               )}
               {onDelete && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onDelete(job.id)}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                <DeleteProjectDialog
+                  projectName={job.fileName}
+                  onDelete={() => onDelete(job.id)}
                 >
-                  <Trash size={16} weight="bold" />
-                </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash size={16} weight="bold" />
+                  </Button>
+                </DeleteProjectDialog>
               )}
             </div>
           </div>
@@ -178,14 +183,18 @@ export function JobCard({ job, onViewDetails, onDelete, onRetry }: JobCardProps)
                 <span className="text-xs text-muted-foreground italic">No project data</span>
               )}
               {onDelete && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onDelete(job.id)}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                <DeleteProjectDialog
+                  projectName={job.fileName}
+                  onDelete={() => onDelete(job.id)}
                 >
-                  <Trash size={16} weight="bold" />
-                </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash size={16} weight="bold" />
+                  </Button>
+                </DeleteProjectDialog>
               )}
             </div>
           </div>
