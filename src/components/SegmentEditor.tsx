@@ -119,8 +119,8 @@ export function SegmentEditor({
         </div>
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-0">
-        <ScrollArea className="h-full px-6 pb-6">
-          <div className="space-y-3">
+        <ScrollArea className="h-full px-4 pb-6">
+          <div className="space-y-3 py-2">
             {segments.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-sm text-muted-foreground">No segments yet</p>
