@@ -45,6 +45,13 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [showExportView, setShowExportView] = useState(false)
 
+  // Update project duration when it changes from video metadata
+  useEffect(() => {
+    if (duration !== project.duration) {
+      onProjectUpdate({ ...project, duration })
+    }
+  }, [duration])
+
   const handleSegmentChange = (segments: Segment[]) => {
     onProjectUpdate({ ...project, segments })
   }
@@ -81,6 +88,8 @@ For each segment, provide:
 2. Start time in seconds
 3. End time in seconds
 4. Brief description of the segment content
+
+IMPORTANT: The video duration is {duration} seconds. ALL segment times must be between 0 and {duration} seconds. The last segment's endTime must not exceed {duration} seconds.
 
 Transcript:
 {transcript}
@@ -121,16 +130,31 @@ Format:
       const segments: Segment[] = result.segments.map((seg: any, index: number) => ({
         id: `segment-${Date.now()}-${index}`,
         title: seg.title || 'Untitled Segment',
-        startTime: seg.startTime || 0,
-        endTime: seg.endTime || videoDuration,
+        startTime: Math.max(0, Math.min(seg.startTime || 0, videoDuration)),
+        endTime: Math.max(0, Math.min(seg.endTime || videoDuration, videoDuration)),
         description: seg.description || '',
       }))
+      
+      // Filter out invalid segments and clamp times to video duration
+      const validSegments = segments.filter(seg => {
+        // Ensure start is before end
+        if (seg.startTime >= seg.endTime) return false
+        // Ensure segment is within video bounds
+        if (seg.startTime >= videoDuration || seg.endTime > videoDuration) return false
+        // Ensure reasonable segment duration (at least 1 second)
+        if (seg.endTime - seg.startTime < 1) return false
+        return true
+      }).map(seg => ({
+        ...seg,
+        startTime: Math.max(0, seg.startTime),
+        endTime: Math.min(videoDuration, seg.endTime)
+      }))
 
-      if (segments.length === 0) {
-        throw new Error('No segments generated')
+      if (validSegments.length === 0) {
+        throw new Error('No valid segments generated')
       }
 
-      handleSegmentChange(segments)
+      handleSegmentChange(validSegments)
       toast.success(`Generated ${segments.length} segments`, {
         description: `Using ${model}`,
       })
@@ -277,12 +301,13 @@ Format:
             )}
           </div>
 
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 lg:max-h-[calc(100vh-12rem)] lg:sticky lg:top-6">
             <SegmentEditor
               segments={project.segments}
               onSegmentChange={handleSegmentChange}
               onSegmentSelect={handleSegmentSelect}
               selectedSegmentId={selectedSegmentId}
+              duration={duration}
             />
           </div>
         </div>
