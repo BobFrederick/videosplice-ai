@@ -1,4 +1,4 @@
-import { PencilSimple, Trash, Plus } from '@phosphor-icons/react'
+import { PencilSimple, Trash } from '@phosphor-icons/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -85,38 +85,10 @@ export function SegmentEditor({
     }
   }
 
-  const addSegment = () => {
-    const lastSegment = segments[segments.length - 1]
-    const startTime = lastSegment ? lastSegment.endTime : 0
-    
-    // Ensure we don't exceed video duration
-    if (duration && startTime >= duration) {
-      return // Can't add segment beyond video duration
-    }
-    
-    const endTime = duration ? Math.min(startTime + 60, duration) : startTime + 60
-
-    const newSegment: Segment = {
-      id: `segment-${Date.now()}`,
-      title: 'New Segment',
-      startTime,
-      endTime,
-      description: '',
-    }
-
-    onSegmentChange([...segments, newSegment])
-  }
-
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Segments</CardTitle>
-          <Button size="sm" onClick={addSegment}>
-            <Plus size={16} weight="bold" className="mr-1" />
-            Add
-          </Button>
-        </div>
+        <CardTitle className="text-base">Segments</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-0">
         <ScrollArea className="h-full px-4 pb-6">
@@ -125,7 +97,7 @@ export function SegmentEditor({
               <div className="py-8 text-center">
                 <p className="text-sm text-muted-foreground">No segments yet</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Click on the timeline to add segments
+                  Use Shift+Click on the timeline to add segments
                 </p>
               </div>
             ) : (
