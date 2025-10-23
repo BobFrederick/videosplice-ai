@@ -491,6 +491,9 @@ export function Timeline({
           
           {timeGrid.map((time) => {
             const position = duration > 0 ? (time / duration) * 100 : 0
+            // Hide grid labels that are too close to the end timestamp to prevent overlap
+            const isTooCloseToEnd = duration - time < 15
+            if (isTooCloseToEnd) return null
             return (
               <div
                 key={`time-label-${time}`}
