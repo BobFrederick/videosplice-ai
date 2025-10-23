@@ -10,6 +10,7 @@ import { Timeline } from '@/components/Timeline'
 import { SegmentEditor } from '@/components/SegmentEditor'
 import { TranscriptViewer } from '@/components/TranscriptViewer'
 import { ExportView } from '@/components/ExportView'
+import { DeleteProjectDialog } from '@/components/DeleteProjectDialog'
 import type { Project, Segment } from '@/lib/types'
 import type { LLMSettings } from '@/components/SettingsDialog'
 import { retryWithBackoff, parseErrorMessage } from '@/lib/helpers'
@@ -23,7 +24,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 
 interface ProjectViewProps {
@@ -241,34 +241,18 @@ Format:
               </Button>
               
               {onProjectDelete && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="icon">
-                      <Trash size={16} weight="bold" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Project</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete "{project.name}"? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => {
-                          onProjectDelete(project.id)
-                          onBack()
-                          toast.success('Project deleted')
-                        }}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <DeleteProjectDialog
+                  projectName={project.name}
+                  onDelete={() => {
+                    onProjectDelete(project.id)
+                    onBack()
+                    toast.success('Project deleted')
+                  }}
+                >
+                  <Button variant="destructive" size="icon">
+                    <Trash size={16} weight="bold" />
+                  </Button>
+                </DeleteProjectDialog>
               )}
             </div>
           </div>
