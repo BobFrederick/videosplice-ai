@@ -72,11 +72,11 @@ export function TranscriptViewer({ transcript, onTranscriptUpdate, editable = tr
           <Textarea
             value={editedTranscript}
             onChange={(e) => setEditedTranscript(e.target.value)}
-            className="min-h-[400px] font-mono text-sm"
+            className="min-h-[300px] max-h-[500px] font-mono text-sm"
             placeholder="Enter transcript..."
           />
         ) : (
-          <ScrollArea className="h-[400px] pr-4">
+          <ScrollArea className="h-[300px] max-h-[500px] pr-4">
             <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
               {transcript}
             </div>

@@ -9,7 +9,7 @@ import { UploadPreview } from '@/components/UploadPreview'
 import { JobCard } from '@/components/JobCard'
 import { ProjectView } from '@/components/ProjectView'
 import { SettingsDialog } from '@/components/SettingsDialog'
-import type { VideoJob, Project } from '@/lib/types'
+import type { VideoJob, Project, Segment } from '@/lib/types'
 import { toast } from 'sonner'
 
 function App() {
@@ -70,6 +70,25 @@ function App() {
         toast.error('Failed to read transcript file')
       }
     }
+    
+    // Get actual video duration
+    const getVideoDuration = (videoFile: File): Promise<number> => {
+      return new Promise((resolve) => {
+        const video = document.createElement('video')
+        video.preload = 'metadata'
+        video.onloadedmetadata = () => {
+          window.URL.revokeObjectURL(video.src)
+          const duration = isFinite(video.duration) ? Math.floor(video.duration) : 450
+          resolve(duration)
+        }
+        video.onerror = () => {
+          resolve(450) // Fallback to default if error
+        }
+        video.src = URL.createObjectURL(videoFile)
+      })
+    }
+    
+    const actualDuration = await getVideoDuration(file)
     
     const newJob: VideoJob = {
       id: jobId,
@@ -138,7 +157,7 @@ function App() {
                     status: 'completed',
                     progress: 100,
                     updatedAt: Date.now(),
-                    duration: 450,
+                    duration: actualDuration,
                     segmentCount: 6,
                   }
                 : job
@@ -155,57 +174,46 @@ Now let's discuss transitions. Transitions help smooth the flow between differen
 
 Finally, we'll cover audio mixing. Good audio is just as important as good video, so pay attention to your levels and use appropriate music.`
 
+          // Generate segments proportional to actual video duration
+          const generateSegments = (duration: number): Segment[] => {
+            const segmentCount = 6
+            const segmentDuration = duration / segmentCount
+            
+            const titles = [
+              'Introduction',
+              'Timeline Interface',
+              'Cutting Techniques',
+              'Transitions',
+              'Audio Mixing',
+              'Conclusion'
+            ]
+            
+            const descriptions = [
+              'Welcome and overview of the tutorial',
+              'Understanding the timeline and clip arrangement',
+              'Different methods for cutting video clips',
+              'Adding smooth transitions between clips',
+              'Balancing audio levels and adding music',
+              'Recap and final thoughts'
+            ]
+            
+            return titles.map((title, index) => ({
+              id: `seg-${index + 1}`,
+              title,
+              startTime: Math.floor(index * segmentDuration),
+              endTime: index === segmentCount - 1 ? duration : Math.floor((index + 1) * segmentDuration),
+              description: descriptions[index]
+            }))
+          }
+
           const newProject: Project = {
             id: `project-${Date.now()}`,
             name: file.name,
             jobId: jobId,
             videoUrl,
-            duration: 450,
+            duration: actualDuration,
             transcript: mockTranscript,
-            segments: [
-              {
-                id: 'seg-1',
-                title: 'Introduction',
-                startTime: 0,
-                endTime: 45,
-                description: 'Welcome and overview of the tutorial',
-              },
-              {
-                id: 'seg-2',
-                title: 'Timeline Interface',
-                startTime: 45,
-                endTime: 120,
-                description: 'Understanding the timeline and clip arrangement',
-              },
-              {
-                id: 'seg-3',
-                title: 'Cutting Techniques',
-                startTime: 120,
-                endTime: 210,
-                description: 'Different methods for cutting video clips',
-              },
-              {
-                id: 'seg-4',
-                title: 'Transitions',
-                startTime: 210,
-                endTime: 315,
-                description: 'Adding smooth transitions between clips',
-              },
-              {
-                id: 'seg-5',
-                title: 'Audio Mixing',
-                startTime: 315,
-                endTime: 420,
-                description: 'Balancing audio levels and adding music',
-              },
-              {
-                id: 'seg-6',
-                title: 'Conclusion',
-                startTime: 420,
-                endTime: 450,
-                description: 'Recap and final thoughts',
-              },
-            ],
+            segments: generateSegments(actualDuration),
           }
 
           setProjects((currentProjects) => {

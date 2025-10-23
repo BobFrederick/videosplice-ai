@@ -38,6 +38,8 @@ For each segment, provide:
 3. End time in seconds
 4. Brief description of the segment content
 
+IMPORTANT: The video duration is {duration} seconds. ALL segment times must be between 0 and {duration} seconds. The last segment's endTime must not exceed {duration} seconds.
+
 Transcript:
 {transcript}
 

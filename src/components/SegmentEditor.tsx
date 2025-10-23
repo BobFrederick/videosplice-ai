@@ -12,6 +12,7 @@ interface SegmentEditorProps {
   onSegmentChange: (segments: Segment[]) => void
   onSegmentSelect: (segment: Segment) => void
   selectedSegmentId?: string
+  duration?: number
 }
 
 export function SegmentEditor({
@@ -19,6 +20,7 @@ export function SegmentEditor({
   onSegmentChange,
   onSegmentSelect,
   selectedSegmentId,
+  duration,
 }: SegmentEditorProps) {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -86,7 +88,13 @@ export function SegmentEditor({
   const addSegment = () => {
     const lastSegment = segments[segments.length - 1]
     const startTime = lastSegment ? lastSegment.endTime : 0
-    const endTime = startTime + 60
+    
+    // Ensure we don't exceed video duration
+    if (duration && startTime >= duration) {
+      return // Can't add segment beyond video duration
+    }
+    
+    const endTime = duration ? Math.min(startTime + 60, duration) : startTime + 60
 
     const newSegment: Segment = {
       id: `segment-${Date.now()}`,
