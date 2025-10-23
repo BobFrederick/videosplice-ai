@@ -151,16 +151,17 @@ export function SettingsDialog() {
             <TabsTrigger value="prompt">Prompt Template</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="model" className="space-y-4 mt-4">
-            <Card>
-              <CardHeader>
+          <TabsContent value="model" className="space-y-4 mt-4 min-h-[520px]">
+            <Card className="h-[520px]">
+              <CardHeader className="min-h-[88px]">
                 <CardTitle className="text-base">Model Selection</CardTitle>
                 <CardDescription>
                   Choose the AI model for analyzing video transcripts
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
+              <CardContent className="space-y-4 min-h-[330px] flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="space-y-2">
                   <Label htmlFor="provider">Provider</Label>
                   <Select
                     value={localProvider}
@@ -207,6 +208,7 @@ export function SettingsDialog() {
                     </SelectContent>
                   </Select>
                 </div>
+                </div>
 
                 <div className="flex items-center gap-2 pt-2">
                   <Button
@@ -235,9 +237,9 @@ export function SettingsDialog() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="prompt" className="space-y-4 mt-4">
-            <Card>
-              <CardHeader>
+          <TabsContent value="prompt" className="space-y-4 mt-4 min-h-[520px]">
+            <Card className="h-[520px]">
+              <CardHeader className="min-h-[88px]">
                 <CardTitle className="text-base">Prompt Template</CardTitle>
                 <CardDescription>
                   Customize the prompt sent to the AI model. Use {'{'}transcript{'}'} and {'{'}
@@ -251,7 +253,7 @@ export function SettingsDialog() {
                     id="prompt"
                     value={localPrompt}
                     onChange={(e) => setLocalPrompt(e.target.value)}
-                    className="font-mono text-sm min-h-[300px]"
+                    className="font-mono text-sm h-[360px] resize-none"
                     placeholder="Enter your custom prompt template..."
                   />
                 </div>
