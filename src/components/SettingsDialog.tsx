@@ -219,7 +219,7 @@ export function SettingsDialog() {
                   >
                     {isTesting ? (
                       <>
-                        <Spinner size={16} className="mr-2 animate-spin" />
+                        <SpinnerIcon size={16} className="mr-2 animate-spin" />
                         Testing...
                       </>
                     ) : (
