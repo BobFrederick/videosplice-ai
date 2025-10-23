@@ -135,8 +135,9 @@
 - [x] Prompt template editor
 - [x] Configuration validation
 - [x] Save settings to storage (useKV)
-- [ ] API key management (if needed)
-- [ ] Usage tracking
+- [x] API key management with secure password field (OpenAI, Anthropic)
+- [x] Local endpoint URL configuration (Ollama, LM Studio)
+- [ ] Usage tracking and cost estimation
 
 ### Feature 8: User & Team Management
 - [ ] Authentication system

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useKV } from '@github/spark/hooks'
-import { Gear, CheckCircle, XCircle, Spinner } from '@phosphor-icons/react'
+import { Gear, CheckCircle, XCircle, Spinner, ArrowCounterClockwise } from '@phosphor-icons/react'
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,9 @@ export interface LLMSettings {
   model: string
   provider: 'openai' | 'anthropic' | 'local'
   customPrompt?: string
+  openaiApiKey?: string
+  anthropicApiKey?: string
+  localEndpoint?: string
 }
 
 const DEFAULT_PROMPT = `You are a video segmentation expert. Analyze the following transcript and identify logical chapter boundaries where topic changes occur.
@@ -71,6 +74,9 @@ export function SettingsDialog() {
     settings?.provider || 'openai'
   )
   const [localPrompt, setLocalPrompt] = useState(settings?.customPrompt || DEFAULT_PROMPT)
+  const [openaiApiKey, setOpenaiApiKey] = useState(settings?.openaiApiKey || '')
+  const [anthropicApiKey, setAnthropicApiKey] = useState(settings?.anthropicApiKey || '')
+  const [localEndpoint, setLocalEndpoint] = useState(settings?.localEndpoint || 'http://localhost:11434')
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null)
   const [open, setOpen] = useState(false)
@@ -80,6 +86,9 @@ export function SettingsDialog() {
       setLocalModel(settings.model)
       setLocalProvider(settings.provider)
       setLocalPrompt(settings.customPrompt || DEFAULT_PROMPT)
+      setOpenaiApiKey(settings.openaiApiKey || '')
+      setAnthropicApiKey(settings.anthropicApiKey || '')
+      setLocalEndpoint(settings.localEndpoint || 'http://localhost:11434')
     }
   }, [settings])
 
@@ -88,6 +97,9 @@ export function SettingsDialog() {
       model: localModel,
       provider: localProvider,
       customPrompt: localPrompt,
+      openaiApiKey: openaiApiKey,
+      anthropicApiKey: anthropicApiKey,
+      localEndpoint: localEndpoint,
     })
     toast.success('Settings saved', {
       description: 'LLM configuration has been updated',
@@ -125,7 +137,11 @@ export function SettingsDialog() {
   }
 
   const handleResetPrompt = () => {
+    console.log('Reset clicked, current prompt length:', localPrompt.length)
+    console.log('Default prompt length:', DEFAULT_PROMPT.length)
+    console.log('Setting prompt to:', DEFAULT_PROMPT.substring(0, 50) + '...')
     setLocalPrompt(DEFAULT_PROMPT)
+    console.log('Prompt after set:', localPrompt.substring(0, 50) + '...')
     toast.success('Prompt reset to default')
   }
 
@@ -208,6 +224,57 @@ export function SettingsDialog() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {localProvider === 'openai' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="openai-key">OpenAI API Key</Label>
+                    <Input
+                      id="openai-key"
+                      type="password"
+                      value={openaiApiKey}
+                      onChange={(e) => setOpenaiApiKey(e.target.value)}
+                      placeholder="sk-..."
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Your API key is stored locally in your browser
+                    </p>
+                  </div>
+                )}
+
+                {localProvider === 'anthropic' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="anthropic-key">Anthropic API Key</Label>
+                    <Input
+                      id="anthropic-key"
+                      type="password"
+                      value={anthropicApiKey}
+                      onChange={(e) => setAnthropicApiKey(e.target.value)}
+                      placeholder="sk-ant-..."
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Your API key is stored locally in your browser
+                    </p>
+                  </div>
+                )}
+
+                {localProvider === 'local' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="local-endpoint">Local Endpoint URL</Label>
+                    <Input
+                      id="local-endpoint"
+                      type="text"
+                      value={localEndpoint}
+                      onChange={(e) => setLocalEndpoint(e.target.value)}
+                      placeholder="http://localhost:11434"
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      URL for your local LLM server (Ollama, LM Studio)
+                    </p>
+                  </div>
+                )}
                 </div>
 
                 <div className="flex items-center gap-2 pt-2">
@@ -219,7 +286,7 @@ export function SettingsDialog() {
                   >
                     {isTesting ? (
                       <>
-                        <SpinnerIcon size={16} className="mr-2 animate-spin" />
+                        <Spinner size={16} className="mr-2 animate-spin" />
                         Testing...
                       </>
                     ) : (
@@ -257,21 +324,33 @@ export function SettingsDialog() {
                     placeholder="Enter your custom prompt template..."
                   />
                 </div>
-
-                <Button variant="outline" size="sm" onClick={handleResetPrompt}>
-                  Reset to Default
-                </Button>
               </CardContent>
             </Card>
+
+            <div className="flex justify-between gap-2 pt-4">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                type="button" 
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleResetPrompt()
+                }}
+                className="hover:bg-accent hover:text-accent-foreground"
+              >
+                <ArrowCounterClockwise size={16} weight="bold" className="mr-2" />
+                Reset Prompt to Default
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSave}>Save Settings</Button>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
-
-        <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>Save Settings</Button>
-        </div>
       </DialogContent>
     </Dialog>
   )
