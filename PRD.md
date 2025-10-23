@@ -105,20 +105,22 @@ This is a full-stack application requiring video processing pipelines, LLM integ
 - Completed jobs accessible in history for 30 days (configurable)
 
 ### 7. LLM Configuration & Management
-**Functionality**: Admin interface to configure local LLM endpoints (Ollama, LM Studio) or cloud API keys (OpenAI, Anthropic), with model selection and prompt customization
+**Functionality**: User-friendly settings interface to configure cloud API keys (OpenAI, Anthropic) or local LLM endpoints (Ollama, LM Studio), with model selection and prompt customization. API keys stored securely in browser storage with password-masked input fields.
 
-**Purpose**: Enable flexible deployment models from fully air-gapped to cloud-powered
+**Purpose**: Enable non-technical users to configure their own AI providers without developer intervention, supporting flexible deployment from cloud to air-gapped local setups
 
-**Trigger**: Initial setup or settings modification by admin user
+**Trigger**: Initial setup or settings modification by user
 
-**Progression**: Navigate to settings → Select LLM provider type → Enter endpoint/API key → Test connection → Configure default models → Customize system prompts → Save configuration
+**Progression**: Navigate to settings → Select LLM provider type → Enter API key (masked) or endpoint URL → Test connection → Configure default models → Customize system prompts → Save configuration securely
 
 **Success Criteria**:
+- API keys entered via password-type input fields (hidden from view)
 - Configuration validates connectivity before saving
-- Supports multiple LLM providers simultaneously
+- Supports multiple LLM providers (OpenAI, Anthropic, Local Ollama/LM Studio)
 - Per-project or per-user model selection override
-- Prompt templates editable with variable substitution
-- API usage tracking and cost estimation for cloud providers
+- Prompt templates editable with variable substitution ({transcript}, {duration})
+- API usage tracking and cost estimation for cloud providers (future enhancement)
+- Clear error messages for invalid keys or connection failures
 
 ### 8. User & Team Management
 **Functionality**: Basic authentication, role-based access (admin/user), project organization, and quota management
