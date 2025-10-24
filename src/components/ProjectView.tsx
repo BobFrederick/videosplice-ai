@@ -14,6 +14,7 @@ import { DeleteProjectDialog } from '@/components/DeleteProjectDialog'
 import type { Project, Segment } from '@/lib/types'
 import type { LLMSettings } from '@/components/SettingsDialog'
 import { retryWithBackoff, parseErrorMessage } from '@/lib/helpers'
+import { createLLMService } from '@/lib/llm'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -35,8 +36,9 @@ interface ProjectViewProps {
 
 export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete }: ProjectViewProps) {
   const [settings] = useKV<LLMSettings>('llm-settings', {
-    model: 'gpt-4o',
-    provider: 'openai',
+    model: 'qwen2.5:7b',
+    provider: 'local',
+    localEndpoint: 'http://localhost:11434',
   })
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(project.duration || 450)
@@ -72,7 +74,12 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
 
   const handleAnalyzeTranscript = async () => {
     if (!project.transcript) {
-      toast.error('No transcript available')
+      toast.error('No transcript available to analyze')
+      return
+    }
+
+    if (!settings) {
+      toast.error('LLM settings not configured. Please check Settings.')
       return
     }
 
@@ -113,16 +120,30 @@ Format:
 
       const promptTemplate = settings?.customPrompt || defaultPrompt
       const promptText = promptTemplate
-        .replace('{transcript}', transcriptText)
-        .replace('{duration}', String(videoDuration))
+        .replace(/\{transcript\}/g, transcriptText)
+        .replace(/\{duration\}/g, String(videoDuration))
 
-      const model = settings?.model || 'gpt-4o'
+      // Create LLM service with current settings
+      const llmService = createLLMService(settings)
       
       const response = await retryWithBackoff(async () => {
-        return await spark.llm(promptText, model, true)
+        const llmResponse = await llmService.generateText(promptText)
+        return llmResponse.text
       }, 3, 2000)
       
-      const result = JSON.parse(response)
+      // Parse JSON response
+      let result
+      try {
+        result = JSON.parse(response)
+      } catch (parseError) {
+        // Try to extract JSON from response if it's wrapped in markdown or other text
+        const jsonMatch = response.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0])
+        } else {
+          throw new Error('Could not parse JSON from LLM response')
+        }
+      }
 
       if (!result.segments || !Array.isArray(result.segments)) {
         throw new Error('Invalid response format from LLM')
@@ -156,8 +177,8 @@ Format:
       }
 
       handleSegmentChange(validSegments)
-      toast.success(`Generated ${segments.length} segments`, {
-        description: `Using ${model}`,
+      toast.success(`Generated ${validSegments.length} segments`, {
+        description: `Using ${settings.provider}/${settings.model}`,
       })
     } catch (error) {
       console.error('Failed to analyze transcript:', error)

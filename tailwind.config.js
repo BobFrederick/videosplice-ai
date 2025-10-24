@@ -100,6 +100,15 @@ const defaultTheme = {
       "2xl": "var(--radius-2xl)",
       full: "var(--radius-full)",
     },
+    animation: {
+      shimmer: "shimmer 2s ease-in-out infinite",
+    },
+    keyframes: {
+      shimmer: {
+        "0%": { transform: "translateX(-100%)" },
+        "100%": { transform: "translateX(100%)" },
+      },
+    },
   },
   spacing: {
     px: "var(--size-px)",

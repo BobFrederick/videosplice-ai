@@ -1,482 +1,339 @@
-import { useState } from 'react'
-import { useKV } from '@github/spark/hooks'
+import { useState, useEffect, useRef } from 'react'
 import { Brain, Plus, SpinnerIcon } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Toaster } from '@/components/ui/sonner'
-import { UploadZone } from '@/components/UploadZone'
-import { UploadPreview } from '@/components/UploadPreview'
 import { JobCard } from '@/components/JobCard'
 import { ProjectView } from '@/components/ProjectView'
 import { SettingsDialog } from '@/components/SettingsDialog'
-import type { VideoJob, Project, Segment } from '@/lib/types'
+import UploadPage from '@/components/UploadPage'
+import type { VideoJob, Project } from '@/lib/types'
+import { useLocalStorage } from '@/hooks/useLocalStorage'
+import { useJobQueue } from '@/hooks/useJobQueue'
+import { VideoJobProcessor } from '@/lib/jobProcessor'
 import { toast } from 'sonner'
 
-function App() {
-  const [jobs, setJobs] = useKV<VideoJob[]>('video-jobs', [])
-  const [projects, setProjects] = useKV<Project[]>('video-projects', [])
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [showUpload, setShowUpload] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
-  const [previewFile, setPreviewFile] = useState<{ file: File; url: string } | null>(null)
+type AppPage = 'queue' | 'upload'
 
-  const jobsList = Array.isArray(jobs) ? jobs : []
+function App() {
+  const [projects, setProjects] = useLocalStorage<Project[]>('video-projects', [])
+  const [currentPage, setCurrentPage] = useState<AppPage>('queue')
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
+  
+  // Use the job queue system
+  const {
+    jobs,
+    activeJobs,
+    completedJobs,
+    failedJobs,
+    isProcessing,
+    currentJobId,
+    addJob,
+    updateJobStatus,
+    removeJob,
+    setJobProcessor
+  } = useJobQueue()
+
   const projectsList = Array.isArray(projects) ? projects : []
   const currentProject = projectsList.find((p) => p.id === currentProjectId)
-
-  const handleUpload = async (file: File) => {
-    setIsUploading(true)
-    setUploadProgress(0)
-    setIsProcessing(true)
-
-    await new Promise(resolve => setTimeout(resolve, 100))
-
-    const videoUrl = URL.createObjectURL(file)
+  
+  // Store video files temporarily 
+  const videoFilesRef = useRef<Map<string, File>>(new Map())
+  
+  // Initialize job processor
+  useEffect(() => {
+    const processor = new VideoJobProcessor({
+      updateJobStatus,
+      setProjects
+    })
     
-    setPreviewFile({ file, url: videoUrl })
-    setIsUploading(false)
-    setIsProcessing(false)
-    setUploadProgress(0)
-  }
-
-  const handlePreviewCancel = () => {
-    if (previewFile) {
-      URL.revokeObjectURL(previewFile.url)
-    }
-    setPreviewFile(null)
-    setShowUpload(false)
-  }
-
-  const handlePreviewConfirm = async (file: File, transcriptFile?: File) => {
-    setIsUploading(true)
-    setUploadProgress(0)
-    setIsProcessing(true)
-
-    await new Promise(resolve => setTimeout(resolve, 100))
-
-    const jobId = `job-${Date.now()}`
-    const videoUrl = previewFile?.url || URL.createObjectURL(file)
-    
-    let transcriptContent: string | undefined
-    let transcriptFileName: string | undefined
-
-    if (transcriptFile) {
-      transcriptFileName = transcriptFile.name
-      try {
-        transcriptContent = await transcriptFile.text()
-      } catch (error) {
-        toast.error('Failed to read transcript file')
+    setJobProcessor(async (job: VideoJob) => {
+      // Check if job is already completed or failed - don't reprocess
+      if (job.status === 'completed' || job.status === 'failed') {
+        console.log('⏭️ Skipping already completed/failed job:', job.id, job.status)
+        return
       }
-    }
-    
-    // Get actual video duration
-    const getVideoDuration = (videoFile: File): Promise<number> => {
-      return new Promise((resolve) => {
-        const video = document.createElement('video')
-        video.preload = 'metadata'
-        video.onloadedmetadata = () => {
-          window.URL.revokeObjectURL(video.src)
-          const duration = isFinite(video.duration) ? Math.floor(video.duration) : 450
-          resolve(duration)
+      
+      // Get the stored video file
+      const videoFile = videoFilesRef.current.get(job.id)
+      if (!videoFile) {
+        throw new Error('Video file not found for job')
+      }
+      
+      console.log('🎬 Processing job with file:', job.id, videoFile.name)
+      
+      try {
+        // Process with the actual file
+        await processor.processJobWithFile(job, videoFile)
+        console.log('🎉 Job processing completed successfully:', job.id)
+        
+        // Clean up stored file only after successful completion
+        videoFilesRef.current.delete(job.id)
+        console.log('🗑️ Cleaned up video file for completed job:', job.id)
+      } catch (error) {
+        console.error('❌ Job processing failed, keeping video file for retry:', job.id, error)
+        // Don't delete the file on error so it can be retried
+        throw error
+      }
+    })
+  }, [updateJobStatus, setProjects, setJobProcessor])
+
+  // Clean up orphaned jobs (jobs without video files) on app start
+  useEffect(() => {
+    // Use a timeout to ensure this runs after initial job loading
+    const timeoutId = setTimeout(() => {
+      console.log('🧹 Cleaning up orphaned jobs on app start...')
+      
+      // Get fresh jobs from localStorage to avoid stale state
+      const freshJobs = (() => {
+        try {
+          const item = window.localStorage.getItem('video-jobs')
+          return item ? JSON.parse(item) : []
+        } catch {
+          return []
         }
-        video.onerror = () => {
-          resolve(450) // Fallback to default if error
-        }
-        video.src = URL.createObjectURL(videoFile)
-      })
-    }
+      })()
+      
+      const orphanedJobs = freshJobs.filter((job: any) => 
+        ['queued', 'processing', 'transcribing', 'analyzing'].includes(job.status) &&
+        !videoFilesRef.current.has(job.id)
+      )
+      
+      if (orphanedJobs.length > 0) {
+        console.log('🗑️ Found orphaned jobs (no video files):', orphanedJobs.map((j: any) => ({ id: j.id, status: j.status })))
+        
+        // Mark orphaned jobs as failed instead of trying to process them
+        orphanedJobs.forEach((job: any) => {
+          updateJobStatus(job.id, {
+            status: 'failed',
+            errorMessage: 'Video file no longer available (app restart)'
+          })
+        })
+      } else {
+        console.log('✅ No orphaned jobs found')
+      }
+    }, 1000)
     
-    const actualDuration = await getVideoDuration(file)
+    return () => clearTimeout(timeoutId)
+  }, [updateJobStatus]) // Only depend on updateJobStatus
+
+  const handleConfirmUpload = async (
+    file: File,
+    transcriptFile?: File
+  ) => {
+    // Generate job ID
+    const jobId = `job-${Date.now()}`
     
+    // Store the video file for processing
+    videoFilesRef.current.set(jobId, file)
+    
+    // Create job with queued status
     const newJob: VideoJob = {
       id: jobId,
       fileName: file.name,
       fileSize: file.size,
-      status: 'uploading',
-      progress: 0,
+      status: 'queued',
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      hasCustomTranscript: !!transcriptFile,
-      transcriptFileName,
+      hasCustomTranscript: !!transcriptFile
     }
 
-    setJobs((currentJobs) => {
-      const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
-      return [newJob, ...existingJobs]
+    console.log('🆕 Adding job to queue:', newJob.id, newJob.fileName)
+    
+    // Add job to queue (this will trigger processing)
+    addJob(newJob)
+    
+    toast.success('Video added to queue!', {
+      description: `${file.name} will be processed automatically`,
     })
-    setIsProcessing(false)
-    setPreviewFile(null)
-
-    const progressInterval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressInterval)
-          return 100
-        }
-        return prev + 10
-      })
-    }, 200)
-
-    setTimeout(() => {
-      clearInterval(progressInterval)
-      setUploadProgress(100)
-      
-      const nextStatus = transcriptFile ? 'analyzing' : 'transcribing'
-      const nextProgress = transcriptFile ? 50 : 25
-      
-      setJobs((currentJobs) => {
-        const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
-        return existingJobs.map((job) =>
-          job.id === jobId
-            ? { ...job, status: nextStatus, progress: nextProgress, updatedAt: Date.now() }
-            : job
-        )
-      })
-
-      const processingDelay = transcriptFile ? 2000 : 3000
-
-      setTimeout(() => {
-        setJobs((currentJobs) => {
-          const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
-          return existingJobs.map((job) =>
-            job.id === jobId
-              ? { ...job, status: 'analyzing', progress: 60, updatedAt: Date.now() }
-              : job
-          )
-        })
-
-        setTimeout(() => {
-          setJobs((currentJobs) => {
-            const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
-            return existingJobs.map((job) =>
-              job.id === jobId
-                ? {
-                    ...job,
-                    status: 'completed',
-                    progress: 100,
-                    updatedAt: Date.now(),
-                    duration: actualDuration,
-                    segmentCount: 6,
-                  }
-                : job
-            )
-          })
-
-          const mockTranscript = transcriptContent || `Welcome to this tutorial on video editing. Today we'll cover the basics of cutting and splicing footage.
-
-First, let's talk about the timeline interface. The timeline is where you'll spend most of your editing time. It displays your video clips in chronological order.
-
-Next, we'll explore different cutting techniques. The most common is the straight cut, where one clip immediately follows another.
-
-Now let's discuss transitions. Transitions help smooth the flow between different clips and can add professional polish to your work.
-
-Finally, we'll cover audio mixing. Good audio is just as important as good video, so pay attention to your levels and use appropriate music.`
-
-          // Generate segments proportional to actual video duration
-          const generateSegments = (duration: number): Segment[] => {
-            const segmentCount = 6
-            const segmentDuration = duration / segmentCount
-            
-            const titles = [
-              'Introduction',
-              'Timeline Interface',
-              'Cutting Techniques',
-              'Transitions',
-              'Audio Mixing',
-              'Conclusion'
-            ]
-            
-            const descriptions = [
-              'Welcome and overview of the tutorial',
-              'Understanding the timeline and clip arrangement',
-              'Different methods for cutting video clips',
-              'Adding smooth transitions between clips',
-              'Balancing audio levels and adding music',
-              'Recap and final thoughts'
-            ]
-            
-            return titles.map((title, index) => ({
-              id: `seg-${index + 1}`,
-              title,
-              startTime: Math.floor(index * segmentDuration),
-              endTime: index === segmentCount - 1 ? duration : Math.floor((index + 1) * segmentDuration),
-              description: descriptions[index]
-            }))
-          }
-
-          const newProject: Project = {
-            id: `project-${Date.now()}`,
-            name: file.name,
-            jobId: jobId,
-            videoUrl,
-            duration: actualDuration,
-            transcript: mockTranscript,
-            segments: generateSegments(actualDuration),
-          }
-
-          setProjects((currentProjects) => {
-            const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
-            return [newProject, ...existingProjects]
-          })
-          
-          const successMessage = transcriptFile 
-            ? `Video processed with custom transcript!`
-            : 'Video processed successfully!'
-          
-          const description = transcriptFile
-            ? `${file.name} has been segmented into 6 chapters using your transcript`
-            : `${file.name} has been segmented into 6 chapters`
-
-          toast.success(successMessage, {
-            description,
-          })
-        }, 3000)
-      }, processingDelay)
-
-      setIsUploading(false)
-      setUploadProgress(0)
-      setShowUpload(false)
-    }, 2000)
   }
-
-  const activeJobs = jobsList.filter((job) => 
-    ['uploading', 'transcribing', 'analyzing', 'segmenting', 'queued'].includes(job.status)
-  )
-  
-  const completedJobs = jobsList.filter((job) => job.status === 'completed')
-  const failedJobs = jobsList.filter((job) => job.status === 'failed')
 
   const handleViewDetails = (jobId: string) => {
-    setProjects((currentProjects) => {
-      const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
-      const project = existingProjects.find((p) => p.jobId === jobId)
-      
-      if (project) {
-        setCurrentProjectId(project.id)
-      } else {
-        toast.error('Project not found', {
-          description: 'Unable to find the project for this job',
-        })
-      }
-      
-      return existingProjects
-    })
+    const project = projectsList.find((p) => p.jobId === jobId)
+    
+    if (project) {
+      setCurrentProjectId(project.id)
+    } else {
+      toast.error('Project not found', {
+        description: 'Unable to find the project for this job',
+      })
+    }
   }
 
-  const handleProjectUpdate = (updatedProject: Project) => {
-    setProjects((currentProjects) => {
+  const handleDeleteJob = (jobId: string) => {
+    removeJob(jobId)
+    
+    // Clean up stored file
+    videoFilesRef.current.delete(jobId)
+    
+    // Remove associated project
+    setProjects(currentProjects => {
       const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
-      return existingProjects.map((p) =>
-        p.id === updatedProject.id ? updatedProject : p
-      )
-    })
-  }
-
-  const handleProjectDelete = (projectId: string) => {
-    setProjects((currentProjects) => {
-      const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
-      return existingProjects.filter((p) => p.id !== projectId)
-    })
-  }
-
-  const handleJobDelete = (jobId: string) => {
-    setProjects((currentProjects) => {
-      const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
-      const project = existingProjects.find((p) => p.jobId === jobId)
-      
-      if (project) {
-        const updatedProjects = existingProjects.filter((p) => p.id !== project.id)
-        
-        setJobs((currentJobs) => {
-          const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
-          return existingJobs.filter((j) => j.id !== jobId)
-        })
-        
-        toast.success('Project deleted', {
-          description: 'The project and its data have been removed',
-        })
-        
-        return updatedProjects
-      }
-      
-      return existingProjects
+      return existingProjects.filter(p => p.jobId !== jobId)
     })
     
-    setJobs((currentJobs) => {
-      const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
-      const jobExists = existingJobs.some((j) => j.id === jobId)
-      
-      if (jobExists) {
-        toast.success('Job deleted', {
-          description: 'The job has been removed',
-        })
-        return existingJobs.filter((j) => j.id !== jobId)
-      }
-      
-      return existingJobs
-    })
+    toast.success('Job deleted successfully')
   }
 
-  const handleJobRetry = (jobId: string) => {
-    setJobs((currentJobs) => {
-      const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
-      const job = existingJobs.find((j) => j.id === jobId)
-      
-      if (!job) return existingJobs
-      
-      const updatedJobs = existingJobs.map((j) =>
-        j.id === jobId
-          ? { ...j, status: 'queued' as const, progress: 0, errorMessage: undefined, updatedAt: Date.now() }
-          : j
-      )
-      
-      toast.success('Job queued for retry', {
-        description: 'The job will be processed again',
-      })
-      
-      setTimeout(() => {
-        setJobs((currentJobs) => {
-          const existingJobs = Array.isArray(currentJobs) ? currentJobs : []
-          return existingJobs.map((j) =>
-            j.id === jobId
-              ? { ...j, status: 'transcribing' as const, progress: 25, updatedAt: Date.now() }
-              : j
-          )
-        })
-      }, 1000)
-      
-      return updatedJobs
-    })
+  const handleBackToJobs = () => {
+    setCurrentProjectId(null)
+  }
+
+  // Debug logging for queue state
+  console.log('🔍 Queue Debug:')
+  console.log('- Total jobs:', jobs.length)
+  console.log('- Active jobs:', activeJobs.length, activeJobs.map(j => ({ id: j.id, status: j.status })))
+  console.log('- Completed jobs:', completedJobs.length, completedJobs.map(j => ({ id: j.id, status: j.status })))
+  console.log('- Failed jobs:', failedJobs.length, failedJobs.map(j => ({ id: j.id, status: j.status })))
+  console.log('- Is processing:', isProcessing)
+  console.log('- Current job:', currentJobId)
+  console.log('- Jobs array:', jobs)
+  
+  // Log current job details if processing
+  if (currentJobId && isProcessing) {
+    const currentJob = jobs.find(j => j.id === currentJobId)
+    if (currentJob) {
+      console.log('🎬 Current Job Details:')
+      console.log(`   Status: ${currentJob.status}`)
+      console.log(`   Progress: ${currentJob.progress}%`)
+      console.log(`   File: ${currentJob.fileName}`)
+    }
   }
 
   if (currentProject) {
     return (
-      <ProjectView
-        project={currentProject}
-        onBack={() => setCurrentProjectId(null)}
-        onProjectUpdate={handleProjectUpdate}
-        onProjectDelete={handleProjectDelete}
+      <ProjectView 
+        project={currentProject} 
+        onBack={handleBackToJobs}
+        onProjectUpdate={(updatedProject) => {
+          setProjects(currentProjects => {
+            const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
+            return existingProjects.map(p => 
+              p.id === updatedProject.id ? updatedProject : p
+            )
+          })
+        }}
       />
     )
   }
 
+  // Render upload page
+  if (currentPage === 'upload') {
+    return (
+      <UploadPage
+        onBack={() => setCurrentPage('queue')}
+        onConfirmUpload={handleConfirmUpload}
+      />
+    )
+  }
+
+  // Render main queue page
   return (
-    <div className="min-h-screen bg-background">
-      <Toaster position="top-right" />
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Brain size={24} weight="duotone" className="text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">VideoSplit</h1>
-                <p className="text-xs text-muted-foreground">AI-Powered Video Segmentation</p>
-              </div>
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8 text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="p-3 bg-purple-600 rounded-xl">
+              <Brain className="h-8 w-8 text-white" />
             </div>
-            
-            <div className="flex items-center gap-2">
-              <SettingsDialog />
-              <Button onClick={() => setShowUpload(!showUpload)}>
-                <Plus size={16} weight="bold" className="mr-2" />
-                New Upload
-              </Button>
-            </div>
+            <h1 className="text-4xl font-bold text-gray-900">
+              VideoSplice AI
+            </h1>
           </div>
+          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+            Intelligent video segmentation powered by local AI. Upload your videos and let our system automatically create meaningful chapters.
+          </p>
         </div>
-      </header>
 
-      <main className="container mx-auto px-6 py-8">
-        <div className="max-w-6xl mx-auto space-y-6">
-          {showUpload && !previewFile && (
-            <UploadZone
-              onUpload={handleUpload}
-              isUploading={isUploading}
-              uploadProgress={uploadProgress}
-              isProcessing={isProcessing}
-            />
-          )}
-
-          {showUpload && previewFile && (
-            <UploadPreview
-              file={previewFile.file}
-              videoUrl={previewFile.url}
-              onConfirm={handlePreviewConfirm}
-              onCancel={handlePreviewCancel}
-            />
-          )}
-
-          <Tabs defaultValue="active" className="w-full">
-            <TabsList className="grid w-full max-w-md grid-cols-3">
-              <TabsTrigger value="active">
-                Active {activeJobs.length > 0 && `(${activeJobs.length})`}
+        <Tabs defaultValue="active" className="w-full">
+          <div className="flex items-center justify-between mb-6">
+            <TabsList className="bg-gray-50 border border-gray-200">
+              <TabsTrigger value="active" className="text-gray-600 data-[state=active]:text-gray-900 data-[state=active]:bg-white">
+                Active Jobs ({activeJobs.length})
               </TabsTrigger>
-              <TabsTrigger value="completed">
-                Completed {completedJobs.length > 0 && `(${completedJobs.length})`}
+              <TabsTrigger value="completed" className="text-gray-600 data-[state=active]:text-gray-900 data-[state=active]:bg-white">
+                Completed ({completedJobs.length})
               </TabsTrigger>
-              <TabsTrigger value="failed">
-                Failed {failedJobs.length > 0 && `(${failedJobs.length})`}
+              <TabsTrigger value="failed" className="text-gray-600 data-[state=active]:text-gray-900 data-[state=active]:bg-white">
+                Failed ({failedJobs.length})
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="active" className="mt-6 space-y-4">
-              {activeJobs.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-sm text-muted-foreground">No active jobs</p>
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {activeJobs.map((job) => (
-                    <JobCard key={job.id} job={job} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
+            <div className="flex items-center gap-4">
+              <SettingsDialog />
+              <Button
+                onClick={() => setCurrentPage('upload')}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                disabled={isProcessing}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {isProcessing ? 'Processing...' : 'Upload Video'}
+              </Button>
+            </div>
+          </div>
 
-            <TabsContent value="completed" className="mt-6 space-y-4">
-              {completedJobs.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-sm text-muted-foreground">No completed jobs</p>
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {completedJobs.map((job) => (
-                    <JobCard 
-                      key={job.id} 
-                      job={job} 
-                      onViewDetails={handleViewDetails}
-                      onDelete={handleJobDelete}
-                    />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
+          <TabsContent value="active" className="space-y-4">
+            {activeJobs.length === 0 ? (
+              <div className="text-center py-12">
+                <SpinnerIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg mb-2">No active jobs</p>
+                <p className="text-gray-400">Upload a video to get started</p>
+              </div>
+            ) : (
+              activeJobs.map((job) => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  onViewDetails={handleViewDetails}
+                  onDelete={handleDeleteJob}
+                />
+              ))
+            )}
+          </TabsContent>
 
-            <TabsContent value="failed" className="mt-6 space-y-4">
-              {failedJobs.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-sm text-muted-foreground">No failed jobs</p>
+          <TabsContent value="completed" className="space-y-4">
+            {completedJobs.length === 0 ? (
+              <div className="text-center py-12">
+                <Brain className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-700 text-lg mb-2">No completed jobs yet</p>
+                <p className="text-gray-500">Processed videos will appear here</p>
+              </div>
+            ) : (
+              completedJobs.map((job) => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  onViewDetails={handleViewDetails}
+                  onDelete={handleDeleteJob}
+                />
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="failed" className="space-y-4">
+            {failedJobs.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-red-500 text-xl">!</span>
                 </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {failedJobs.map((job) => (
-                    <JobCard 
-                      key={job.id} 
-                      job={job} 
-                      onViewDetails={handleViewDetails}
-                      onRetry={handleJobRetry}
-                      onDelete={handleJobDelete}
-                    />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-      </main>
+                <p className="text-gray-500 text-lg mb-2">No failed jobs</p>
+                <p className="text-gray-400">Failed processing attempts will appear here</p>
+              </div>
+            ) : (
+              failedJobs.map((job) => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  onViewDetails={handleViewDetails}
+                  onDelete={handleDeleteJob}
+                />
+              ))
+            )}
+          </TabsContent>
+        </Tabs>
+
+        <Toaster />
+      </div>
     </div>
   )
 }
