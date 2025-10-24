@@ -1,8 +1,8 @@
 import { VideoCamera, CheckCircle, XCircle, Spinner, Clock, Trash, FileText, ArrowClockwise } from '@phosphor-icons/react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
+import { ActivityProgressBar } from '@/components/ui/activity-progress'
 import { DeleteProjectDialog } from '@/components/DeleteProjectDialog'
 import type { VideoJob } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -14,11 +14,35 @@ interface JobCardProps {
   onRetry?: (jobId: string) => void
 }
 
+function getStatusMessage(status: string): string {
+  switch (status) {
+    case 'queued':
+      return 'Waiting in queue...'
+    case 'processing':
+      return 'Initializing job...'
+    case 'uploading':
+      return 'Uploading video file...'
+    case 'transcribing':
+      return 'Transcribing audio with Whisper AI...'
+    case 'analyzing':
+      return 'Analyzing content with LLM...'
+    case 'segmenting':
+      return 'Creating intelligent segments...'
+    default:
+      return 'Processing...'
+  }
+}
+
 const statusConfig = {
   queued: {
     label: 'Queued',
     icon: Clock,
     color: 'bg-warning/10 text-warning-foreground border-warning/20',
+  },
+  processing: {
+    label: 'Processing',
+    icon: Spinner,
+    color: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   },
   uploading: {
     label: 'Uploading',
@@ -26,14 +50,14 @@ const statusConfig = {
     color: 'bg-primary/10 text-primary border-primary/20',
   },
   transcribing: {
-    label: 'Transcribing',
+    label: 'Transcribing Audio',
     icon: Spinner,
-    color: 'bg-primary/10 text-primary border-primary/20',
+    color: 'bg-green-500/10 text-green-400 border-green-500/20',
   },
   analyzing: {
-    label: 'Analyzing',
+    label: 'Analyzing Content',
     icon: Spinner,
-    color: 'bg-primary/10 text-primary border-primary/20',
+    color: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
   },
   segmenting: {
     label: 'Segmenting',
@@ -74,7 +98,7 @@ function formatDate(timestamp: number): string {
 export function JobCard({ job, onViewDetails, onDelete, onRetry }: JobCardProps) {
   const config = statusConfig[job.status]
   const Icon = config.icon
-  const isProcessing = ['uploading', 'transcribing', 'analyzing', 'segmenting'].includes(job.status)
+  const isProcessing = ['processing', 'uploading', 'transcribing', 'analyzing', 'segmenting'].includes(job.status)
 
   return (
     <Card className="transition-all hover:shadow-md">
@@ -119,9 +143,13 @@ export function JobCard({ job, onViewDetails, onDelete, onRetry }: JobCardProps)
 
       <CardContent className="space-y-3">
         {isProcessing && (
-          <div className="space-y-1">
-            <Progress value={job.progress} className="h-1.5" />
-            <p className="text-xs text-muted-foreground">{job.progress}% complete</p>
+          <div className="space-y-2">
+            <ActivityProgressBar className="h-1.5" isActive={true} />
+            <div className="text-xs">
+              <span className="text-muted-foreground">
+                {getStatusMessage(job.status)}
+              </span>
+            </div>
           </div>
         )}
 

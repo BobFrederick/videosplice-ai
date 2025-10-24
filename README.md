@@ -1,22 +1,56 @@
-# ✨ Welcome to Your Spark Template!
-You've just launched your brand-new Spark Template Codespace — everything’s fired up and ready for you to explore, build, and create with Spark!
+# 🎬 VideoSplice AI
 
-This template is your blank canvas. It comes with a minimal setup to help you get started quickly with Spark development.
+Intelligent video segmentation powered by local AI. Upload your videos and let our system automatically create meaningful chapters using advanced speech-to-text and content analysis.
 
-🚀 What's Inside?
-- A clean, minimal Spark environment
-- Pre-configured for local development
-- Ready to scale with your ideas
-  
-🧠 What Can You Do?
+## ✨ Features
 
-Right now, this is just a starting point — the perfect place to begin building and testing your Spark applications.
+- **🎙️ Local Whisper Transcription**: High-quality speech-to-text using Whisper.cpp with GPU acceleration
+- **🧠 Ollama LLM Integration**: Local AI-powered content analysis with Qwen2.5 7B and Mistral 7B models  
+- **⚡ Real-time Queue System**: Sequential job processing with live progress tracking
+- **📱 Modern UI**: Clean, responsive interface built with React 19 and Tailwind CSS
+- **💾 Local Storage**: No external dependencies - everything runs locally
+- **🔄 Progress Tracking**: Real-time updates with detailed status messages
 
-🧹 Just Exploring?
-No problem! If you were just checking things out and don’t need to keep this code:
+## 🚀 Quick Start
 
-- Simply delete your Spark.
-- Everything will be cleaned up — no traces left behind.
+1. **Install Dependencies**
+   ```bash
+   npm install
+   ```
+
+2. **Start Whisper Server**
+   ```bash
+   node whisper-server.mjs
+   ```
+
+3. **Launch Development Server**
+   ```bash
+   npm run dev
+   ```
+
+4. **Open Browser**
+   Navigate to `http://localhost:5001`
+
+## 📁 Project Structure
+
+```
+videosplice-ai/
+├── src/
+│   ├── components/          # React UI components
+│   ├── hooks/              # Custom React hooks (useJobQueue, useLocalStorage)
+│   ├── lib/                # Core services (whisper, jobProcessor, types)
+│   └── styles/             # CSS and theme files
+├── docs/                   # Project documentation
+├── whisper-server.mjs      # Whisper.cpp API server
+└── package.json           # Dependencies and scripts
+```
+
+## 🛠️ Technology Stack
+
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS
+- **Backend**: Node.js Express server for Whisper processing  
+- **AI Models**: Whisper.cpp (transcription), Ollama (LLM analysis)
+- **Storage**: localStorage for offline-first experience
 
 📄 License For Spark Template Resources 
 

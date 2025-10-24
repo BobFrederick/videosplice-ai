@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useKV } from '@github/spark/hooks'
+import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { Gear, CheckCircle, XCircle, Spinner, ArrowCounterClockwise } from '@phosphor-icons/react'
 import {
   Dialog,
@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { createLLMService } from '@/lib/llm'
 import { toast } from 'sonner'
 
 export interface LLMSettings {
@@ -63,15 +64,16 @@ Format:
 }`
 
 export function SettingsDialog() {
-  const [settings, setSettings] = useKV<LLMSettings>('llm-settings', {
-    model: 'gpt-4o',
-    provider: 'openai',
+  const [settings, setSettings] = useLocalStorage<LLMSettings>('llm-settings', {
+    model: 'qwen2.5:7b',
+    provider: 'local',
     customPrompt: DEFAULT_PROMPT,
+    localEndpoint: 'http://localhost:11434',
   })
   
-  const [localModel, setLocalModel] = useState(settings?.model || 'gpt-4o')
+  const [localModel, setLocalModel] = useState(settings?.model || 'qwen2.5:7b')
   const [localProvider, setLocalProvider] = useState<'openai' | 'anthropic' | 'local'>(
-    settings?.provider || 'openai'
+    settings?.provider || 'local'
   )
   const [localPrompt, setLocalPrompt] = useState(settings?.customPrompt || DEFAULT_PROMPT)
   const [openaiApiKey, setOpenaiApiKey] = useState(settings?.openaiApiKey || '')
@@ -112,18 +114,28 @@ export function SettingsDialog() {
     setTestResult(null)
 
     try {
-      const testPrompt = spark.llmPrompt`Say "Hello" if you can read this.`
-      const response = await spark.llm(testPrompt, localModel)
+      // Create temporary settings object for testing
+      const testSettings: LLMSettings = {
+        model: localModel,
+        provider: localProvider,
+        customPrompt: localPrompt,
+        openaiApiKey: openaiApiKey,
+        anthropicApiKey: anthropicApiKey,
+        localEndpoint: localEndpoint,
+      }
+
+      const llmService = createLLMService(testSettings)
+      const isConnected = await llmService.testConnection()
       
-      if (response && response.length > 0) {
+      if (isConnected) {
         setTestResult('success')
         toast.success('Connection successful', {
-          description: `Model ${localModel} is responding correctly`,
+          description: `${localProvider}/${localModel} is responding correctly`,
         })
       } else {
         setTestResult('error')
         toast.error('Connection failed', {
-          description: 'Model returned empty response',
+          description: 'Model test did not return expected response',
         })
       }
     } catch (error) {
@@ -216,9 +228,11 @@ export function SettingsDialog() {
                       )}
                       {localProvider === 'local' && (
                         <>
-                          <SelectItem value="llama3">Llama 3</SelectItem>
-                          <SelectItem value="mistral">Mistral</SelectItem>
-                          <SelectItem value="gemma">Gemma</SelectItem>
+                          <SelectItem value="qwen2.5:7b">Qwen2.5 7B (Best for Analysis)</SelectItem>
+                          <SelectItem value="mistral:7b">Mistral 7B (Good Reasoning)</SelectItem>
+                          <SelectItem value="llama3.2:1b">Llama 3.2 1B (Fast)</SelectItem>
+                          <SelectItem value="llama3.1:8b">Llama 3.1 8B</SelectItem>
+                          <SelectItem value="gemma2:9b">Gemma 2 9B</SelectItem>
                         </>
                       )}
                     </SelectContent>

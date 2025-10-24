@@ -1,11 +1,11 @@
-export type JobStatus = 'queued' | 'uploading' | 'transcribing' | 'analyzing' | 'segmenting' | 'completed' | 'failed'
+export type JobStatus = 'queued' | 'uploading' | 'processing' | 'transcribing' | 'analyzing' | 'segmenting' | 'completed' | 'failed'
 
 export interface VideoJob {
   id: string
   fileName: string
   fileSize: number
   status: JobStatus
-  progress: number
+  progress?: number
   createdAt: number
   updatedAt: number
   duration?: number
