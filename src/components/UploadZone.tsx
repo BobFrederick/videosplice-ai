@@ -5,13 +5,20 @@ import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 
 interface UploadZoneProps {
-  onUpload: (file: File) => void
-  isUploading: boolean
-  uploadProgress: number
+  onUpload: (file: File, customTranscript?: string) => void
+  isUploading?: boolean
+  uploadProgress?: number
   isProcessing?: boolean
+  disabled?: boolean
 }
 
-export function UploadZone({ onUpload, isUploading, uploadProgress, isProcessing = false }: UploadZoneProps) {
+export function UploadZone({ 
+  onUpload, 
+  isUploading = false, 
+  uploadProgress = 0, 
+  isProcessing = false,
+  disabled = false 
+}: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -74,7 +81,7 @@ export function UploadZone({ onUpload, isUploading, uploadProgress, isProcessing
         'relative overflow-hidden transition-all duration-200',
         isDragging && 'border-accent bg-accent/5',
         error && 'border-destructive',
-        (isUploading || isProcessing) && 'pointer-events-none'
+        (isUploading || isProcessing || disabled) && 'pointer-events-none opacity-50'
       )}
       onDrop={handleDrop}
       onDragOver={handleDragOver}

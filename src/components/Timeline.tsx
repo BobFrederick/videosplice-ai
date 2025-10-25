@@ -387,8 +387,7 @@ export function Timeline({
 
           {segments.map((segment, index) => {
             const left = duration > 0 ? (segment.startTime / duration) * 100 : 0
-            const right = duration > 0 ? ((duration - segment.endTime) / duration) * 100 : 0
-            const width = 100 - left - right
+            const width = duration > 0 ? ((segment.endTime - segment.startTime) / duration) * 100 : 0
             const colors = [
               'bg-chart-1/20',
               'bg-chart-2/20',
@@ -402,18 +401,18 @@ export function Timeline({
               <div
                 key={segment.id}
                 className={cn(
-                  'absolute top-0 h-full border-l border-r border-border',
+                  'absolute top-0 h-full border-l border-r border-border overflow-hidden',
                   color
                 )}
                 style={{ 
                   left: `${left}%`, 
-                  right: `${right}%`,
+                  width: `${width}%`,
                 }}
               >
-                <div className="absolute inset-0 flex flex-col items-center justify-center px-2 gap-0.5">
-                  <span className="text-xs font-medium truncate w-full text-center">{segment.title}</span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center px-2 gap-0.5 overflow-hidden">
+                  <span className="text-xs font-medium truncate w-full text-center whitespace-nowrap">{segment.title}</span>
                   {width > 8 && (
-                    <span className="text-[10px] text-muted-foreground font-mono">
+                    <span className="text-[10px] text-muted-foreground font-mono whitespace-nowrap">
                       {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
                     </span>
                   )}
