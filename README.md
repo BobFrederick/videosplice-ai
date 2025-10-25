@@ -37,8 +37,8 @@ Intelligent video segmentation powered by local AI. Upload your videos and let o
 videosplice-ai/
 ├── src/
 │   ├── components/          # React UI components
-│   ├── hooks/              # Custom React hooks (useJobQueue, useLocalStorage)
-│   ├── lib/                # Core services (whisper, jobProcessor, types)
+│   ├── hooks/              # Custom React hooks (useLocalStorage)
+│   ├── lib/                # Core services (whisper, types, utilities)
 │   └── styles/             # CSS and theme files
 ├── docs/                   # Project documentation
 ├── whisper-server.mjs      # Whisper.cpp API server

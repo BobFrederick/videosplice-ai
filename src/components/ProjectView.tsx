@@ -324,6 +324,7 @@ Format:
             {project.transcript && (
               <TranscriptViewer
                 transcript={project.transcript}
+                segments={project.segments}
                 onTranscriptUpdate={handleTranscriptUpdate}
                 editable={true}
               />
