@@ -84,9 +84,47 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    version: '1.0.0'
+    uptime: process.uptime()
   })
+})
+
+// Serve video files for project viewing
+app.get('/api/video/:jobId', (req, res) => {
+  try {
+    const { jobId } = req.params
+    const videoPath = path.join(UPLOAD_DIR, `${jobId}.mp4`)
+    
+    // Check if file exists
+    if (!fs.existsSync(videoPath)) {
+      console.log(`❌ Video file not found: ${videoPath}`)
+      return res.status(404).json({
+        error: 'Video file not found',
+        message: 'The video file may have been cleaned up or the job ID is invalid'
+      })
+    }
+    
+    console.log(`📺 Serving video file: ${jobId}.mp4`)
+    
+    // Get file stats for Content-Length
+    const stat = fs.statSync(videoPath)
+    const fileSize = stat.size
+    
+    // Set appropriate headers for video streaming
+    res.setHeader('Content-Type', 'video/mp4')
+    res.setHeader('Accept-Ranges', 'bytes')
+    res.setHeader('Content-Length', fileSize.toString())
+    
+    // Stream the video file
+    const videoStream = fs.createReadStream(videoPath)
+    videoStream.pipe(res)
+    
+  } catch (error) {
+    console.error('❌ Error serving video:', error)
+    res.status(500).json({
+      error: 'Failed to serve video',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    })
+  }
 })
 
 // Upload video and create job

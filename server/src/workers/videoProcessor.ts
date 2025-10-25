@@ -69,8 +69,9 @@ class VideoProcessor {
         result: job.returnvalue
       })
 
-      // Cleanup file after successful processing
-      this.cleanupJobFile(job.data.filePath)
+      // Keep video file for project viewing - don't cleanup on success
+      // this.cleanupJobFile(job.data.filePath) // Commented out to preserve video files
+      console.log(`📁 Keeping video file for project viewing: ${job.data.filePath}`)
     })
 
     this.worker.on('failed', (job: Job | undefined, err: Error) => {

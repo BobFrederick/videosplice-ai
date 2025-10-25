@@ -623,60 +623,8 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
                       return null
                     })()}
                     
-                    {status === 'completed' && onViewProject && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          console.log('🔍 View Results clicked - WebSocket data:', webSocketData)
-                          console.log('🔍 Pending job real ID:', pendingJob.realJobId)
-                          
-                          // Create a mock job object for the onViewProject handler
-                          const mockJob = {
-                            id: pendingJob.realJobId || tempId,
-                            returnvalue: webSocketData?.result || {
-                              projectId: pendingJob.realJobId || tempId,
-                              jobId: pendingJob.realJobId || tempId,
-                              fileName: fileName,
-                              segments: [],
-                              transcript: '',
-                              duration: 0
-                            }
-                          }
-                          console.log('🔍 Mock job for view:', mockJob)
-                          onViewProject(mockJob.returnvalue.projectId || mockJob.id, mockJob)
-                        }}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Results
-                      </Button>
-                    )}
-                    
-                    {/* Fallback button if no results data yet but job is complete */}
-                    {status === 'completed' && !webSocketData?.result && onViewProject && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          console.log('🔍 Fallback View Results clicked')
-                          const mockJob = {
-                            id: pendingJob.realJobId || tempId,
-                            returnvalue: {
-                              projectId: pendingJob.realJobId || tempId,
-                              jobId: pendingJob.realJobId || tempId,
-                              fileName: fileName,
-                              segments: [],
-                              transcript: 'Processing completed - transcript will be loaded',
-                              duration: 0
-                            }
-                          }
-                          onViewProject(mockJob.returnvalue.projectId || mockJob.id, mockJob)
-                        }}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Results
-                      </Button>
-                    )}
+                    {/* Note: "View Results" button only shown for real jobs with returnvalue data */}
+                    {/* This prevents duplicate buttons with incomplete data */}
                     
                     {status !== 'uploading' && status !== 'processing' && (
                       <Button
