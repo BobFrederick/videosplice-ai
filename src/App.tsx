@@ -19,6 +19,9 @@ function App() {
   }
 
   const handleViewProject = async (projectId: string, job?: any) => {
+    console.log('🔍 DEBUG: handleViewProject called with:', { projectId, hasJob: !!job })
+    console.log('🔍 DEBUG: Current projects list:', projectsList.map(p => ({ id: p.id, name: p.name, segments: p.segments?.length })))
+    
     // First, try to find an existing project by ID
     let existingProject = projectsList.find(p => p.id === projectId)
     
@@ -27,16 +30,48 @@ function App() {
       existingProject = projectsList.find(p => p.jobId === projectId)
     }
     
+    // If we found an existing project but it has no segments and we have fresh job data, update it
+    if (existingProject && job?.returnvalue && (!existingProject.segments || existingProject.segments.length === 0)) {
+      console.log('🔍 DEBUG: Found existing project with no segments, updating with fresh job data')
+      console.log('🔍 DEBUG: Job returnvalue has segments:', job.returnvalue.segments?.length || 0)
+      
+      try {
+        const updatedProject: Project = {
+          ...existingProject,
+          name: job.data?.fileName || job.returnvalue?.fileName || existingProject.name,
+          segments: job.returnvalue.segments || [],
+          transcript: job.returnvalue.transcript || existingProject.transcript,
+          videoUrl: `http://localhost:8080/api/video/${job.id}`,
+          duration: job.returnvalue.duration || job.data?.duration || existingProject.duration
+        }
+        
+        console.log('🔍 DEBUG: Updated project:', updatedProject)
+        console.log('🔍 DEBUG: Updated project segments:', updatedProject.segments?.length || 0)
+        
+        // Update the project in the list
+        setProjects(currentProjects => {
+          const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
+          return existingProjects.map(p => p.id === updatedProject.id ? updatedProject : p)
+        })
+        
+        setCurrentProjectId(updatedProject.id)
+        return
+      } catch (error) {
+        console.error('Failed to update project with fresh data:', error)
+      }
+    }
+    
     if (existingProject) {
+      console.log('🔍 DEBUG: Found existing project:', existingProject)
       setCurrentProjectId(existingProject.id)
       return
     }
 
     // If no existing project found, try to create one from job data
     if (job) {
-      console.log('Creating project from job data:', job)
-      console.log('Job returnvalue:', job.returnvalue)
-      console.log('Job data:', job.data)
+      console.log('🔍 DEBUG: Creating project from job data:', job)
+      console.log('🔍 DEBUG: Job returnvalue:', job.returnvalue)
+      console.log('🔍 DEBUG: Job data:', job.data)
       
       try {
         // Try to fetch job results from server if returnvalue is missing
@@ -57,24 +92,30 @@ function App() {
         
         const newProject: Project = {
           id: jobResults?.projectId || job.id,
-          name: job.data?.fileName || `Project ${job.id}`,
+          name: job.data?.fileName || jobResults?.fileName || `Project ${job.id}`,
           jobId: job.id,
           segments: jobResults?.segments || [],
           transcript: jobResults?.transcript || 'Processing results not available',
-          videoUrl: jobResults?.videoUrl || job.data?.videoUrl,
+          videoUrl: `http://localhost:8080/api/video/${job.id}`,
           duration: jobResults?.duration || job.data?.duration || 0,
           exportedSegments: jobResults?.exportedSegments || []
         }
         
-        console.log('Creating new project:', newProject)
+        console.log('🔍 DEBUG: Creating new project:', newProject)
+        console.log('🔍 DEBUG: Project segments count:', newProject.segments?.length || 0)
+        console.log('🔍 DEBUG: Project segments detail:', newProject.segments)
+        console.log('🔍 DEBUG: Project video URL:', newProject.videoUrl)
         
         // Add the new project to the projects list
         setProjects(currentProjects => {
           const existingProjects = Array.isArray(currentProjects) ? currentProjects : []
-          return [...existingProjects, newProject]
+          const updatedProjects = [...existingProjects, newProject]
+          console.log('🔍 DEBUG: Updated projects list:', updatedProjects.map(p => ({ id: p.id, name: p.name, segments: p.segments?.length })))
+          return updatedProjects
         })
         
         // Navigate to the new project
+        console.log('🔍 DEBUG: Setting current project ID to:', newProject.id)
         setCurrentProjectId(newProject.id)
         return
         

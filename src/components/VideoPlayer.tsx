@@ -38,13 +38,21 @@ export function VideoPlayer({
 
   useEffect(() => {
     const video = videoRef.current
-    if (!video || !src) return
+    if (!video || !src) {
+      console.log('🎥 VideoPlayer: No video element or src', { hasVideo: !!video, src })
+      return
+    }
 
+    // Construct full URL for debugging
+    const fullUrl = src.startsWith('http') ? src : `http://localhost:8080${src}`
+    console.log('🎥 VideoPlayer: Loading video from:', src)
+    console.log('🎥 VideoPlayer: Full URL would be:', fullUrl)
     setIsPlaying(false)
     setProgress(0)
 
     const handleLoadedMetadata = () => {
       const validDuration = isFinite(video.duration) ? video.duration : 0
+      console.log('🎥 VideoPlayer: Metadata loaded, duration:', validDuration)
       setDuration(validDuration)
       onDurationChange?.(validDuration)
     }
@@ -75,12 +83,24 @@ export function VideoPlayer({
       }
     }
 
+    const handleError = (e: Event) => {
+      console.error('🎥 VideoPlayer: Error loading video', {
+        src,
+        error: video.error,
+        errorCode: video.error?.code,
+        errorMessage: video.error?.message,
+        networkState: video.networkState,
+        readyState: video.readyState
+      })
+    }
+
     video.addEventListener('loadedmetadata', handleLoadedMetadata)
     video.addEventListener('timeupdate', handleTimeUpdate)
     video.addEventListener('ended', handleEnded)
     video.addEventListener('play', handlePlay)
     video.addEventListener('pause', handlePause)
     video.addEventListener('canplay', handleCanPlay)
+    video.addEventListener('error', handleError)
 
     video.load()
 
@@ -95,6 +115,7 @@ export function VideoPlayer({
       video.removeEventListener('play', handlePlay)
       video.removeEventListener('pause', handlePause)
       video.removeEventListener('canplay', handleCanPlay)
+      video.removeEventListener('error', handleError)
     }
   }, [src, onTimeUpdate, onDurationChange])
 

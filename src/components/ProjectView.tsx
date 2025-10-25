@@ -35,6 +35,13 @@ interface ProjectViewProps {
 }
 
 export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete }: ProjectViewProps) {
+  console.log('🎥 ProjectView - Project data:', {
+    id: project.id,
+    name: project.name,
+    videoUrl: project.videoUrl,
+    segmentCount: project.segments?.length || 0
+  })
+  
   const [settings] = useKV<LLMSettings>('llm-settings', {
     model: 'qwen2.5:7b',
     provider: 'local',
