@@ -1,5 +1,11 @@
 export type JobStatus = 'queued' | 'uploading' | 'processing' | 'transcribing' | 'analyzing' | 'segmenting' | 'completed' | 'failed'
 
+export interface WhisperSegment {
+  start: number
+  end: number
+  text: string
+}
+
 export interface VideoJob {
   id: string
   fileName: string
@@ -44,6 +50,7 @@ export interface Project {
   name: string
   videoUrl?: string
   transcript?: string
+  whisperSegments?: WhisperSegment[]
   segments: Segment[]
   jobId: string
   duration?: number
