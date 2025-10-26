@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import { VideoPlayer } from '@/components/VideoPlayer'
 import { Timeline } from '@/components/Timeline'
 import { SegmentEditor } from '@/components/SegmentEditor'
@@ -27,7 +30,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-
 interface ProjectViewProps {
   project: Project
   onBack: () => void
@@ -55,6 +57,8 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [showExportView, setShowExportView] = useState(false)
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false)
+  const [showAdvancedMode, setShowAdvancedMode] = useState(false)
+  const [customInstructions, setCustomInstructions] = useState('')
 
   // Update project duration when it changes from video metadata
   useEffect(() => {
@@ -109,7 +113,8 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
             transcriptText,
             whisperSegments,
             videoDuration,
-            project.name
+            project.name,
+            customInstructions || undefined
           )
 
       // Create LLM service with current settings
@@ -320,7 +325,42 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
             )}
           </div>
 
-          <div className="lg:col-span-1 lg:max-h-[calc(100vh-12rem)] lg:sticky lg:top-6">
+          <div className="lg:col-span-1 lg:max-h-[calc(100vh-12rem)] lg:sticky lg:top-6 space-y-4">
+            {/* Advanced Mode Toggle */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="advanced-mode" className="text-sm font-medium">
+                    Advanced Mode
+                  </Label>
+                  <Switch
+                    id="advanced-mode"
+                    checked={showAdvancedMode}
+                    onCheckedChange={setShowAdvancedMode}
+                  />
+                </div>
+              </CardHeader>
+              {showAdvancedMode && (
+                <CardContent className="pt-0">
+                  <div className="space-y-2">
+                    <Label htmlFor="custom-instructions" className="text-xs text-muted-foreground">
+                      Custom segmentation instructions (optional)
+                    </Label>
+                    <Textarea
+                      id="custom-instructions"
+                      placeholder="e.g., Create more granular segments focusing on specific topics, or combine similar sections..."
+                      value={customInstructions}
+                      onChange={(e) => setCustomInstructions(e.target.value)}
+                      className="min-h-[100px] text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      These instructions will be added to the AI prompt when you regenerate segments.
+                    </p>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+            
             <SegmentEditor
               segments={project.segments}
               onSegmentChange={handleSegmentChange}

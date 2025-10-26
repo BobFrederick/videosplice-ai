@@ -76,7 +76,8 @@ async function callOllama(
       options: {
         temperature: options.temperature,
         top_p: 0.9,
-        max_tokens: 2000
+        max_tokens: 2000,
+        num_ctx: 8192  // Increase context window to 8k tokens (default is 4k)
       }
     })
   })
@@ -133,7 +134,16 @@ function parseSegmentationResponse(
         const endIdx = Math.min(whisperSegments.length - 1, llmSeg.whisperSegmentEnd || 0)
         
         startTime = whisperSegments[startIdx]?.start || 0
+        // Use the END of the endIdx Whisper segment
         endTime = whisperSegments[endIdx]?.end || 0
+        
+        // CRITICAL FIX: For all segments except the last, use the START of the next whisper segment
+        // This ensures perfect alignment between segments (no gaps, no overlaps)
+        const isLastSegment = index === parsed.segments.length - 1
+        if (!isLastSegment && llmSeg.whisperSegmentEnd !== undefined) {
+          const nextWhisperIdx = Math.min(whisperSegments.length - 1, llmSeg.whisperSegmentEnd + 1)
+          endTime = whisperSegments[nextWhisperIdx]?.start || endTime
+        }
       } else if (llmSeg.startTime !== undefined && llmSeg.endTime !== undefined) {
         // LLM provided direct timestamps (fallback for custom prompts)
         startTime = llmSeg.startTime
@@ -148,20 +158,25 @@ function parseSegmentationResponse(
       // Special case: Last segment should extend to full video duration
       // This ensures we don't have trailing content without a segment
       const isLastSegment = index === parsed.segments.length - 1
-      const finalEndTime = isLastSegment ? Math.ceil(videoDuration) : Math.floor(endTime)
+      const finalEndTime = isLastSegment ? Math.ceil(videoDuration) : endTime
 
       return {
         id: llmSeg.id || `seg-${index + 1}`,
         title: llmSeg.title || `Segment ${index + 1}`,
         description: llmSeg.description || '',
         startTime: Math.floor(startTime),
-        endTime: finalEndTime
+        endTime: Math.floor(finalEndTime)
       }
     })
 
     // Filter out invalid segments, then validate and fix overlaps/gaps
     const validSegments = segments.filter(seg => seg.endTime > seg.startTime)
-    const fixedSegments = validateAndFixSegments(validSegments)
+    
+    console.log('🔍 Segments BEFORE validation:', validSegments.map(s => `${s.title}: ${s.startTime}s-${s.endTime}s`))
+    
+    const fixedSegments = validateAndFixSegments(validSegments, videoDuration)
+    
+    console.log('🔍 Segments AFTER validation:', fixedSegments.map(s => `${s.title}: ${s.startTime}s-${s.endTime}s`))
     
     // Final cleanup: Remove any zero-duration segments
     const finalSegments = fixedSegments.filter(seg => {
@@ -194,7 +209,7 @@ function parseSegmentationResponse(
  * 
  * Goal: Create clean, contiguous segments that cover the full video
  */
-function validateAndFixSegments(segments: Segment[]): Segment[] {
+function validateAndFixSegments(segments: Segment[], videoDuration: number): Segment[] {
   const MIN_SEGMENT_DURATION = 10 // 10 seconds minimum
   
   // Sort by start time in case LLM returned them out of order
@@ -230,8 +245,6 @@ function validateAndFixSegments(segments: Segment[]): Segment[] {
   }
   
   // PASS 2: Fix overlaps and gaps between consecutive segments
-  const finalSegments: Segment[] = []
-  
   for (let i = 0; i < validSegments.length - 1; i++) {
     const current = validSegments[i]
     const next = validSegments[i + 1]
@@ -243,35 +256,53 @@ function validateAndFixSegments(segments: Segment[]): Segment[] {
     }
     // GAP: There's empty time between current and next
     else if (current.endTime < next.startTime) {
-      console.log(`🔧 Fixing segment gap: "${current.title}" ends at ${current.endTime}s but "${next.title}" starts at ${next.startTime}s`)
+      const gap = next.startTime - current.endTime
+      console.log(`🔧 Fixing segment gap: "${current.title}" ends at ${current.endTime}s but "${next.title}" starts at ${next.startTime}s (gap: ${gap}s)`)
+      // Extend current segment to meet the next one (no gaps allowed)
       current.endTime = next.startTime
     }
-    
-    // Only keep segments that still have valid duration after fixes
+  }
+  
+  // PASS 3: Remove segments that became too short after gap/overlap fixes
+  const finalSegments: Segment[] = []
+  
+  for (let i = 0; i < validSegments.length; i++) {
+    const current = validSegments[i]
     const duration = current.endTime - current.startTime
+    
     if (duration >= MIN_SEGMENT_DURATION) {
       finalSegments.push(current)
     } else {
-      console.log(`🚫 Removing segment "${current.title}" with ${duration}s duration after overlap/gap fixing`)
-      // Extend the next segment to cover this removed segment's time
-      if (next) {
-        next.startTime = current.startTime
+      console.log(`🚫 Removing segment "${current.title}" with ${duration}s duration after fixes`)
+      // Extend the next segment backward to cover this removed segment's time
+      if (i < validSegments.length - 1) {
+        validSegments[i + 1].startTime = current.startTime
+      }
+      // If it's the last segment, extend the previous segment forward
+      else if (finalSegments.length > 0) {
+        finalSegments[finalSegments.length - 1].endTime = current.endTime
       }
     }
   }
   
-  // Add the last segment if it has valid duration
-  if (validSegments.length > 0) {
-    const lastSegment = validSegments[validSegments.length - 1]
-    const duration = lastSegment.endTime - lastSegment.startTime
-    if (duration >= MIN_SEGMENT_DURATION) {
-      finalSegments.push(lastSegment)
-    } else if (finalSegments.length > 0) {
-      // Merge short last segment with previous segment
-      const prevSegment = finalSegments[finalSegments.length - 1]
-      prevSegment.endTime = lastSegment.endTime
-      prevSegment.title = `${prevSegment.title} / ${lastSegment.title}`
-      console.log(`🔧 Merged short last segment "${lastSegment.title}" with previous segment`)
+  // PASS 4: Ensure segments cover entire video duration (0 to videoDuration)
+  // Fix common LLM issue: sometimes only segments first half of video
+  if (finalSegments.length > 0) {
+    const firstSegment = finalSegments[0]
+    const lastSegment = finalSegments[finalSegments.length - 1]
+    
+    // If first segment doesn't start at 0, extend it backward
+    if (firstSegment.startTime > 0) {
+      console.log(`🔧 Extending first segment "${firstSegment.title}" backward from ${firstSegment.startTime}s to 0s`)
+      firstSegment.startTime = 0
+    }
+    
+    // If last segment doesn't reach video end, extend it forward
+    // This is CRITICAL - LLM sometimes only segments first half of video
+    if (lastSegment.endTime < videoDuration) {
+      const missingTime = videoDuration - lastSegment.endTime
+      console.log(`🔧 Extending last segment "${lastSegment.title}" forward from ${lastSegment.endTime}s to ${videoDuration}s (missing ${missingTime}s)`)
+      lastSegment.endTime = Math.ceil(videoDuration)
     }
   }
   
