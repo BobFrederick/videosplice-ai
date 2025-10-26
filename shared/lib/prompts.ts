@@ -19,12 +19,14 @@ import type { WhisperSegment } from './types'
  * - {transcript} - Full transcript text
  * - {whisperSegments} - Formatted Whisper segments with indices and timestamps
  * - {whisperSegmentCount} - Total number of Whisper segments
+ * - {customInstructions} - Optional user-provided custom instructions
  */
 export function createDefaultPrompt(
   transcript: string,
   whisperSegments: WhisperSegment[],
   duration: number,
-  fileName?: string
+  fileName?: string,
+  customInstructions?: string
 ): string {
   // If no whisperSegments, use timestamp-based format
   if (!whisperSegments || whisperSegments.length === 0) {
@@ -37,30 +39,33 @@ export function createDefaultPrompt(
 **Full Transcript:**
 ${transcript}
 
-**Task:**
+${customInstructions ? `**🎯 USER'S CUSTOM INSTRUCTIONS - HIGHEST PRIORITY - MUST FOLLOW:**
+${customInstructions}
+
+` : ''}**Task:**
 Analyze the content and create 4-8 logical segments that cover the entire video. Each segment should represent a distinct topic, concept, or section of the video.
 
 **CRITICAL REQUIREMENTS:**
-1. **MANDATORY: The first segment MUST not be titled anything that implies conclusion or ending since it is the opening segment of the video**
-2. Use timestamps in seconds (decimal values like 12.5 are allowed)
-3. Create descriptive, specific titles for segments after the first one
-4. Write 1-2 sentence descriptions that summarize what happens in each segment
-5. Ensure segments are CONTIGUOUS - no gaps between segments, each segment should end where the next begins
-6. No segments should be over 10 minutes in length
-7. Cover the full video duration from start (0s) to end (${Math.ceil(duration)}s)
-
+1. Use timestamps in seconds (decimal values like 12.5 are allowed)
+2. Create descriptive, specific titles for each segment
+3. Write 1-2 sentence descriptions that summarize what happens in each segment
+4. Ensure segments are CONTIGUOUS - no gaps between segments, each segment should end where the next begins
+5. No segments should be over 10 minutes in length
+6. Cover the full video duration from start (0s) to end (${Math.ceil(duration)}s)
+${!customInstructions ? `7. The first segment should NOT be titled anything that implies conclusion or ending since it is the opening segment` : ''}
 **Things to avoid:**
 - Creating segments that overlap in time
 - Leaving gaps between segments
-- Using vague or generic titles (EXCEPT for the required "Test Prompt" first segment)
+- Using vague or generic titles
 - Zero length segments
+- Generic statements like "The video continues" or "Inroduction to the Video Content
 
 **Output Format (JSON only):**
 {
   "segments": [
     {
       "id": "seg-1",
-      "title": "Test Prompt",
+      "title": "Specific descriptive title for first segment",
       "description": "Opening remarks and overview of the video content.",
       "startTime": 0,
       "endTime": 45.5
@@ -95,23 +100,25 @@ ${transcript}
 **Whisper Timing Segments:**
 ${whisperSegments.map((seg, i) => `[${i}] ${seg.start.toFixed(1)}s - ${seg.end.toFixed(1)}s: "${seg.text}"`).join('\n')}
 
-**Task:**
+${customInstructions ? `**🎯 USER'S CUSTOM INSTRUCTIONS - HIGHEST PRIORITY - MUST FOLLOW:**
+${customInstructions}
+
+` : ''}**Task:**
 Analyze the content and create 4-8 logical segments that group related Whisper segments together. Each segment should represent a distinct topic, concept, or section of the video.
 
 **CRITICAL REQUIREMENTS:**
-1. **MANDATORY: The first segment MUST not be titled anythign that implies conclusion or ending since it is the opening segment of the video**
-2. Use the Whisper segment timing boundaries (don't create arbitrary timestamps)
-3. Group consecutive Whisper segments that discuss the same topic
-4. For segments after the first one, create descriptive, specific titles that describe the actual content
-5. Write 1-2 sentence descriptions that summarize what happens in each segment
+1. Use the Whisper segment timing boundaries (don't create arbitrary timestamps)
+2. Group consecutive Whisper segments that discuss the same topic
+3. Create descriptive, specific titles that accurately describe the content
+4. Write 1-2 sentence descriptions that summarize what happens in each segment
 5. Ensure segments are CONTIGUOUS - no gaps between segments, each segment should end where the next begins
 6. No segments should be over 10 minutes in length
-6. Cover the full video duration from start (0s) to end (${Math.ceil(duration)}s)
-
+7. Cover the full video duration from start (0s) to end (${Math.ceil(duration)}s)
+${!customInstructions ? `8. The first segment should NOT be titled anything that implies conclusion or ending since it is the opening segment` : ''}
 **Things to avoid:**
 - Creating segments that overlap in time
 - Leaving gaps between segments
-- Using vague or generic titles (EXCEPT for the required "Test Prompt" first segment)
+- Using vague or generic titles
 - Zero length segments
 
 **Output Format (JSON only):**
@@ -119,7 +126,7 @@ Analyze the content and create 4-8 logical segments that group related Whisper s
   "segments": [
     {
       "id": "seg-1",
-      "title": "Test Prompt",
+      "title": "Opening Section Title",
       "description": "Opening remarks and overview of the video content.",
       "whisperSegmentStart": 0,
       "whisperSegmentEnd": 5

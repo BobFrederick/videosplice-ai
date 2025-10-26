@@ -54,6 +54,7 @@ export class LLMService {
           temperature: 0.3,
           top_p: 0.9,
           num_predict: 2048,
+          num_ctx: 8192,  // Increase context window to 8k tokens
         }
       }),
     })
