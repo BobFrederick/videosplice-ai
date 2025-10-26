@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useKV } from '@github/spark/hooks'
+import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { ArrowLeft, Brain, DownloadSimple, Spinner, Trash } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -42,7 +42,7 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
     segmentCount: project.segments?.length || 0
   })
   
-  const [settings] = useKV<LLMSettings>('llm-settings', {
+  const [settings] = useLocalStorage<LLMSettings>('llm-settings', {
     model: 'qwen2.5:7b',
     provider: 'local',
     localEndpoint: 'http://localhost:11434',
@@ -225,8 +225,8 @@ Format:
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#282c34]">
+      <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#21252b]">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -234,8 +234,8 @@ Format:
                 <ArrowLeft size={20} weight="bold" />
               </Button>
               <div>
-                <h1 className="text-xl font-bold">{project.name}</h1>
-                <p className="text-xs text-muted-foreground">
+                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{project.name}</h1>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   {project.segments.length} segment{project.segments.length !== 1 ? 's' : ''}
                 </p>
               </div>
