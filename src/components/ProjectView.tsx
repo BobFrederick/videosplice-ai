@@ -15,6 +15,7 @@ import type { Project, Segment } from '@/lib/types'
 import type { LLMSettings } from '@/components/SettingsDialog'
 import { retryWithBackoff, parseErrorMessage } from '@/lib/helpers'
 import { createLLMService } from '@/lib/llm'
+import { createDefaultPrompt } from '@shared/lib/prompts'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -96,39 +97,20 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
       const transcriptText = project.transcript
       const videoDuration = duration
       
-      const defaultPrompt = `You are a video segmentation expert. Analyze the following transcript and identify logical chapter boundaries where topic changes occur.
-
-For each segment, provide:
-1. A descriptive title (3-7 words)
-2. Start time in seconds
-3. End time in seconds
-4. Brief description of the segment content
-
-IMPORTANT: The video duration is {duration} seconds. ALL segment times must be between 0 and {duration} seconds. The last segment's endTime must not exceed {duration} seconds.
-
-Transcript:
-{transcript}
-
-Video duration: {duration} seconds
-
-Return the result as a valid JSON object with a single property called "segments" that contains an array of segment objects.
-
-Format:
-{
-  "segments": [
-    {
-      "title": "Introduction",
-      "startTime": 0,
-      "endTime": 45,
-      "description": "Opening remarks and overview"
-    }
-  ]
-}`
-
-      const promptTemplate = settings?.customPrompt || defaultPrompt
-      const promptText = promptTemplate
-        .replace(/\{transcript\}/g, transcriptText)
-        .replace(/\{duration\}/g, String(videoDuration))
+      // Use whisperSegments if available, otherwise create basic segments from transcript
+      const whisperSegments = project.whisperSegments || []
+      
+      // Generate prompt using shared createDefaultPrompt function
+      const promptText = settings?.customPrompt 
+        ? settings.customPrompt
+            .replace(/\{transcript\}/g, transcriptText)
+            .replace(/\{duration\}/g, String(videoDuration))
+        : createDefaultPrompt(
+            transcriptText,
+            whisperSegments,
+            videoDuration,
+            project.name
+          )
 
       // Create LLM service with current settings
       const llmService = createLLMService(settings)

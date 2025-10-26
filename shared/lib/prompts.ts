@@ -26,6 +26,62 @@ export function createDefaultPrompt(
   duration: number,
   fileName?: string
 ): string {
+  // If no whisperSegments, use timestamp-based format
+  if (!whisperSegments || whisperSegments.length === 0) {
+    return `You are an expert video content analyzer. Your job is to create meaningful, logical segments from a video transcript.
+
+**Video Information:**
+- File: ${fileName || 'Unknown'}
+- Duration: ${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s
+
+**Full Transcript:**
+${transcript}
+
+**Task:**
+Analyze the content and create 4-8 logical segments that cover the entire video. Each segment should represent a distinct topic, concept, or section of the video.
+
+**CRITICAL REQUIREMENTS:**
+1. **MANDATORY: The first segment MUST not be titled anything that implies conclusion or ending since it is the opening segment of the video**
+2. Use timestamps in seconds (decimal values like 12.5 are allowed)
+3. Create descriptive, specific titles for segments after the first one
+4. Write 1-2 sentence descriptions that summarize what happens in each segment
+5. Ensure segments are CONTIGUOUS - no gaps between segments, each segment should end where the next begins
+6. No segments should be over 10 minutes in length
+7. Cover the full video duration from start (0s) to end (${Math.ceil(duration)}s)
+
+**Things to avoid:**
+- Creating segments that overlap in time
+- Leaving gaps between segments
+- Using vague or generic titles (EXCEPT for the required "Test Prompt" first segment)
+- Zero length segments
+
+**Output Format (JSON only):**
+{
+  "segments": [
+    {
+      "id": "seg-1",
+      "title": "Test Prompt",
+      "description": "Opening remarks and overview of the video content.",
+      "startTime": 0,
+      "endTime": 45.5
+    },
+    {
+      "id": "seg-2",
+      "title": "Specific descriptive title for second segment",
+      "description": "What actually happens in this segment.",
+      "startTime": 45.5,
+      "endTime": 120.0
+    }
+  ],
+  "reasoning": "Brief explanation of your segmentation strategy."
+}
+
+The "startTime" and "endTime" are in seconds and must be between 0 and ${Math.ceil(duration)}.
+
+Respond with valid JSON only:`
+  }
+  
+  // Original whisperSegment-based format
   return `You are an expert video content analyzer. Your job is to create meaningful, logical segments from a video transcript.
 
 **Video Information:**
@@ -42,31 +98,38 @@ ${whisperSegments.map((seg, i) => `[${i}] ${seg.start.toFixed(1)}s - ${seg.end.t
 **Task:**
 Analyze the content and create 4-8 logical segments that group related Whisper segments together. Each segment should represent a distinct topic, concept, or section of the video.
 
-**Requirements:**
-1. Use the Whisper segment timing boundaries (don't create arbitrary timestamps)
-2. Group consecutive Whisper segments that discuss the same topic
-3. Create descriptive, specific titles (not generic like "Introduction" unless truly intro content)
-4. Write 1-2 sentence descriptions that summarize what happens in each segment
+**CRITICAL REQUIREMENTS:**
+1. **MANDATORY: The first segment MUST not be titled anythign that implies conclusion or ending since it is the opening segment of the video**
+2. Use the Whisper segment timing boundaries (don't create arbitrary timestamps)
+3. Group consecutive Whisper segments that discuss the same topic
+4. For segments after the first one, create descriptive, specific titles that describe the actual content
+5. Write 1-2 sentence descriptions that summarize what happens in each segment
 5. Ensure segments are CONTIGUOUS - no gaps between segments, each segment should end where the next begins
+6. No segments should be over 10 minutes in length
 6. Cover the full video duration from start (0s) to end (${Math.ceil(duration)}s)
 
 **Things to avoid:**
 - Creating segments that overlap in time
 - Leaving gaps between segments
-- Using vague or generic titles
+- Using vague or generic titles (EXCEPT for the required "Test Prompt" first segment)
 - Zero length segments
-- First segments that express Conclusion or Ending prematurely
-- Never use the word conclusion or ending in the first segment.
 
 **Output Format (JSON only):**
 {
   "segments": [
     {
       "id": "seg-1",
-      "title": "Specific descriptive title",
-      "description": "What actually happens in this segment.",
+      "title": "Test Prompt",
+      "description": "Opening remarks and overview of the video content.",
       "whisperSegmentStart": 0,
       "whisperSegmentEnd": 5
+    },
+    {
+      "id": "seg-2",
+      "title": "Specific descriptive title for second segment",
+      "description": "What actually happens in this segment.",
+      "whisperSegmentStart": 6,
+      "whisperSegmentEnd": 12
     }
   ],
   "reasoning": "Brief explanation of your segmentation strategy."
