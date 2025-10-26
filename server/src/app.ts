@@ -1,3 +1,6 @@
+// Module alias setup - MUST be first
+import './moduleAlias'
+
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'

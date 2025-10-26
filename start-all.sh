@@ -12,7 +12,13 @@ cleanup() {
     [ ! -z "$WHISPER_PID" ] && kill $WHISPER_PID 2>/dev/null || true
     [ ! -z "$OLLAMA_PID" ] && kill $OLLAMA_PID 2>/dev/null || true  
     [ ! -z "$BULLMQ_SERVER_PID" ] && kill $BULLMQ_SERVER_PID 2>/dev/null || true
-    [ ! -z "$BULLMQ_WORKER_PID" ] && kill $BULLMQ_WORKER_PID 2>/dev/null || true
+    
+    # Kill worker and its npm parent process
+    if [ ! -z "$BULLMQ_WORKER_PID" ]; then
+        pkill -P $BULLMQ_WORKER_PID 2>/dev/null || true
+        kill $BULLMQ_WORKER_PID 2>/dev/null || true
+    fi
+    
     [ ! -z "$FRONTEND_PID" ] && kill $FRONTEND_PID 2>/dev/null || true
     
     # Wait for processes to exit (only if they have PIDs)
@@ -100,16 +106,24 @@ fi
 echo ""
 echo "5️⃣ Checking BullMQ worker..."
 # Check if worker is already running by looking for the process
-if pgrep -f "videoProcessor" > /dev/null 2>&1; then
+if pgrep -f "dist/server/src/workers/videoProcessor.js" > /dev/null 2>&1; then
     echo "✅ BullMQ worker is already running"
     BULLMQ_WORKER_PID=""
 else
     echo "🔄 Starting BullMQ worker..."
-    cd /home/desops/videosplice-ai/server && npm run worker &
+    cd /home/desops/videosplice-ai/server
+    nohup npm run worker > /tmp/bullmq-worker.log 2>&1 &
     BULLMQ_WORKER_PID=$!
     cd /home/desops/videosplice-ai
     sleep 3
-    echo "✅ BullMQ worker started (PID: $BULLMQ_WORKER_PID)"
+    
+    # Verify worker actually started
+    if pgrep -f "dist/server/src/workers/videoProcessor.js" > /dev/null 2>&1; then
+        echo "✅ BullMQ worker started (PID: $BULLMQ_WORKER_PID)"
+    else
+        echo "❌ BullMQ worker failed to start - check /tmp/bullmq-worker.log"
+        tail -10 /tmp/bullmq-worker.log
+    fi
 fi
 
 echo ""

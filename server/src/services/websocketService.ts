@@ -79,6 +79,18 @@ class WebSocketService extends EventEmitter {
   sendJobUpdate(jobId: string, update: any) {
     let sentCount = 0
     
+    // Log what we're sending for debugging
+    console.log(`📡 Preparing to send job update for ${jobId}:`, {
+      status: update.status,
+      progress: update.progress,
+      hasResult: !!update.result,
+      resultPreview: update.result ? {
+        jobId: update.result.jobId,
+        segmentCount: update.result.segmentCount,
+        hasTranscript: !!update.result.transcript
+      } : null
+    })
+    
     for (const [clientId, connection] of this.clients) {
       if (connection.subscribedJobs.has(jobId) && connection.ws.readyState === WebSocket.OPEN) {
         connection.ws.send(JSON.stringify({
@@ -92,6 +104,8 @@ class WebSocketService extends EventEmitter {
 
     if (sentCount > 0) {
       console.log(`📡 Sent job update to ${sentCount} clients for job ${jobId}`)
+    } else {
+      console.log(`⚠️ No clients subscribed to job ${jobId} - update not sent`)
     }
   }
 
