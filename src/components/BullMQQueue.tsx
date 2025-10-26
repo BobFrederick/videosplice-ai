@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -46,6 +46,14 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
     localEndpoint: 'http://localhost:11434',
   })
   const [jobUpdates, setJobUpdates] = useState<Map<string, any>>(new Map())
+  
+  // Use a ref to always have the latest jobUpdates for onClick handlers
+  const jobUpdatesRef = useRef<Map<string, any>>(new Map())
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    jobUpdatesRef.current = jobUpdates
+  }, [jobUpdates])
 
   // Connection check - test actual server connectivity
   const checkConnection = async () => {
@@ -73,19 +81,23 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
     loadJobs()
     loadStats()
     
-    // Aggressive polling every 2 seconds to catch fast-completing jobs
+    // More aggressive polling - 500ms for active jobs, 2s for idle
     const interval = setInterval(() => {
       const hasActiveJobs = Array.from(jobUpdates.values()).some(
         update => update?.status === 'processing' || update?.status === 'transcribing' || update?.status === 'analyzing'
-      )
+      ) || Array.from(pendingJobs.values()).some(p => p.realJobId)
       
-      // Always poll for jobs to catch fast completions
-      loadJobs()
-      loadStats() // Always refresh stats (this also checks connection)
-    }, 2000) // Poll every 2 seconds
+      // Fast polling when jobs are active, slower when idle
+      const shouldPollNow = hasActiveJobs || Date.now() % 2000 < 500
+      
+      if (shouldPollNow) {
+        loadJobs()
+        loadStats()
+      }
+    }, 500) // Check every 500ms
 
     return () => clearInterval(interval)
-  }, [jobUpdates])
+  }, [jobUpdates, pendingJobs])
 
   const loadJobs = async () => {
     try {
@@ -222,9 +234,17 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
       const unsubscribe = queueAPI.subscribeToJob(jobId, (update) => {
         console.log('📡 Received job update:', jobId, update)
         console.log('📡 Full update object:', JSON.stringify(update, null, 2))
+        
+        // Update both state AND ref immediately to avoid timing issues
         setJobUpdates(prev => {
-          const newMap = new Map(prev.set(jobId, update))
+          const newMap = new Map(prev)
+          newMap.set(jobId, update)
           console.log('📡 jobUpdates map updated:', Array.from(newMap.entries()))
+          
+          // Also update ref immediately so onClick handlers have instant access
+          jobUpdatesRef.current = newMap
+          console.log('📡 jobUpdatesRef also updated immediately')
+          
           return newMap
         })
         
@@ -247,8 +267,9 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
             returnvalue: update.result
           })
           
-          // Don't trigger loadJobs on completion since we show via pending job + WebSocket
-          console.log(`✅ Job ${jobId} completed - keeping visible via pending job system`)
+          // Immediately trigger a job reload to get the completed job from API
+          console.log(`✅ Job ${jobId} completed - triggering immediate reload`)
+          loadJobs()
         } else if (update.status === 'failed') {
           toast.error(`Video processing failed: ${update.error || 'Unknown error'}`)
           console.log(`❌ Job ${jobId} failed - keeping visible via pending job system`)
@@ -491,11 +512,18 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
           const realJob = pendingJob.realJobId ? jobs.find(j => j.id === pendingJob.realJobId) : null
           
           if (webSocketData) {
+            console.log(`🔍 WebSocket data check for ${tempId}:`, {
+              status: webSocketData.status,
+              hasResult: !!webSocketData.result,
+              resultKeys: webSocketData.result ? Object.keys(webSocketData.result) : []
+            })
+            
             if (webSocketData.status === 'completed') {
-              // Only mark as completed if we have actual results data
-              if (webSocketData.result && (webSocketData.result.segments || webSocketData.result.transcript)) {
+              // Mark as completed if we have any result data
+              if (webSocketData.result) {
                 status = 'completed'
                 showViewResults = true
+                console.log(`✅ Job ${pendingJob.realJobId} completed with results:`, webSocketData.result)
               } else {
                 // Job says completed but no results yet - keep processing status
                 status = 'processing'
@@ -619,12 +647,54 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
                   <div className="flex items-center gap-2">
                     {/* Debug: Log button condition status */}
                     {(() => {
-                      console.log(`🔍 Button check for ${tempId}: status=${status}, completed=${status === 'completed'}, onViewProject=${!!onViewProject}`)
+                      console.log(`🔍 Button check for ${tempId}: status=${status}, showViewResults=${showViewResults}, onViewProject=${!!onViewProject}, hasWebSocketData=${!!webSocketData}, hasResult=${!!webSocketData?.result}`)
                       return null
                     })()}
                     
-                    {/* Note: "View Results" button only shown for real jobs with returnvalue data */}
-                    {/* This prevents duplicate buttons with incomplete data */}
+                    {/* Show View Results immediately when WebSocket confirms completion with data */}
+                    {status === 'completed' && showViewResults && onViewProject && (
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={async () => {
+                          console.log('🚀 Pending job View Results clicked (WebSocket):', tempId)
+                          
+                          // Get fresh WebSocket data from ref (not state) to avoid stale closure
+                          const currentWebSocketData = pendingJob.realJobId ? jobUpdatesRef.current.get(pendingJob.realJobId) : null
+                          console.log('🔍 Current WebSocket data at click time (from ref):', currentWebSocketData)
+                          
+                          // Safety check: ensure webSocketData and result exist at click time
+                          if (!currentWebSocketData || !currentWebSocketData.result) {
+                            console.error('❌ WebSocket data missing at click time:', { currentWebSocketData, tempId, realJobId: pendingJob.realJobId })
+                            toast.error('Result data not available. Please refresh the page.')
+                            return
+                          }
+                          
+                          try {
+                            const projectId = currentWebSocketData.result.projectId || pendingJob.realJobId
+                            // Construct a job-like object from WebSocket data
+                            const jobData = {
+                              id: pendingJob.realJobId,
+                              returnvalue: currentWebSocketData.result,
+                              data: {
+                                fileName: fileName,
+                                fileSize: fileSize,
+                              }
+                            }
+                            
+                            console.log('🚀 Calling onViewProject with:', { projectId, jobData })
+                            await onViewProject(projectId, jobData)
+                            console.log('✅ onViewProject completed successfully')
+                          } catch (error) {
+                            console.error('❌ Error in onViewProject:', error)
+                            toast.error(`Failed to open project: ${error instanceof Error ? error.message : 'Unknown error'}`)
+                          }
+                        }}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Results
+                      </Button>
+                    )}
                     
                     {status !== 'uploading' && status !== 'processing' && (
                       <Button
@@ -652,7 +722,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
                 {/* Full-width Progress Bar Section */}
                 {(status === 'uploading' || status === 'processing' || status === 'waiting' || status === 'analyzing') && (
                   <div className="space-y-2">
-                    <div className="flex justify-end items-center text-sm">
+                    <div className="flex justify-between items-center text-sm">
                       <span className="text-blue-600">
                         {status === 'uploading' && 'Uploading to server'}
                         {status === 'waiting' && 'Waiting in queue'}
@@ -668,6 +738,12 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
                         )}
                         {status === 'processing' && webSocketData?.progress === undefined && 'Processing'}
                       </span>
+                      {/* Show percentage for active processing */}
+                      {status === 'processing' && webSocketData?.progress !== undefined && (
+                        <span className="text-blue-600 font-semibold">
+                          {Math.round(webSocketData.progress)}%
+                        </span>
+                      )}
                     </div>
                     <Progress 
                       value={status === 'uploading' ? 0 : 

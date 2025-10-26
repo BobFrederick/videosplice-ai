@@ -3,11 +3,16 @@ import { Brain } from '@phosphor-icons/react'
 import { Toaster } from '@/components/ui/sonner'
 import { ProjectView } from '@/components/ProjectView'
 import { SettingsDialog } from '@/components/SettingsDialog'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { BullMQQueue } from '@/components/BullMQQueue'
 import type { Project } from '@/lib/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
+import { useTheme } from '@/hooks/useTheme'
 
 function App() {
+  // Initialize theme
+  useTheme()
+  
   const [projects, setProjects] = useLocalStorage<Project[]>('video-projects', [])
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
 
@@ -148,23 +153,24 @@ function App() {
 
   // Show the main BullMQ queue interface
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#282c34]">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="p-3 bg-purple-600 rounded-xl">
               <Brain className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-gray-900">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
               VideoSplice AI
             </h1>
           </div>
-          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+          <p className="text-gray-600 dark:text-gray-400 text-lg max-w-2xl mx-auto">
             Intelligent video segmentation powered by local AI with BullMQ job queue system.
           </p>
         </div>
 
-        <div className="flex items-center justify-end mb-6">
+        <div className="flex items-center justify-end gap-2 mb-6">
+          <ThemeToggle />
           <SettingsDialog />
         </div>
 

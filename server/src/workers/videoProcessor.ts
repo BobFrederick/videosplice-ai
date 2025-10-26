@@ -1,9 +1,13 @@
+// Module alias setup - MUST be first
+import '../moduleAlias'
+
 import { Worker, Job } from 'bullmq'
 import Redis from 'ioredis'
 import fs from 'fs'
 import path from 'path'
 import { VideoJob, ProcessingOptions } from '../types'
 import wsService from '../services/websocketService'
+import { generateIntelligentSegments } from '@shared/llmSegmentation'
 
 // Import your existing processing logic (we'll adapt these)
 // Note: These imports will need to be adapted from your frontend services
@@ -156,12 +160,17 @@ class VideoProcessor {
         message: 'Analyzing content with LLM...'
       })
 
-      const segmentationResult = await this.generateSegments(
+      const segmentationResult = await generateIntelligentSegments(
         transcriptionResult.transcript,
         transcriptionResult.segments,
         transcriptionResult.duration,
-        fileName,
-        llmSettings.customPrompt
+        {
+          customPrompt: llmSettings.customPrompt,
+          fileName: fileName,
+          ollamaEndpoint: 'http://localhost:11434',
+          model: 'qwen2.5:7b',
+          temperature: 0.3
+        }
       )
       
       console.log(`🔍 DEBUG: Segmentation completed for job ${id}:`, {
@@ -199,6 +208,16 @@ class VideoProcessor {
         
         console.log(`🔍 DEBUG: About to return result for job ${id}`)
         console.log(`🎉 Video processing completed: ${id}`)
+        
+        // Send WebSocket update BEFORE returning to ensure clients get immediate notification
+        // This is more reliable than waiting for the 'completed' event which may have timing issues
+        console.log(`📡 Sending immediate completion WebSocket update for job ${id}`)
+        wsService.sendJobUpdate(id, {
+          status: 'completed',
+          progress: 100,
+          message: 'Video processing completed successfully',
+          result: result
+        })
         
         // Ensure we return the result properly
         console.log(`🔍 DEBUG: Returning result for job ${id}`)
@@ -265,187 +284,6 @@ class VideoProcessor {
       segments: result.segments || [],
       duration: result.duration || (result.segments && result.segments.length > 0 ? Math.max(...result.segments.map((s: any) => s.end || 0)) : 0)
     }
-  }
-
-  private async generateSegments(
-    transcript: string,
-    whisperSegments: any[],
-    duration: number,
-    fileName?: string,
-    customPrompt?: string
-  ): Promise<{ segments: any[]; reasoning?: string }> {
-    
-    // Call LLM segmentation service
-    const response = await fetch('http://localhost:11434/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'qwen2.5:7b',
-        prompt: this.createSegmentationPrompt(transcript, whisperSegments, duration, fileName, customPrompt),
-        stream: false,
-        options: {
-          temperature: 0.3,
-          top_p: 0.9,
-          max_tokens: 2000
-        }
-      })
-    })
-
-    if (!response.ok) {
-      throw new Error(`LLM segmentation failed: ${response.statusText}`)
-    }
-
-    const result = await response.json() as { response: string }
-    return this.parseSegmentationResponse(result.response, whisperSegments, duration)
-  }
-
-  private createSegmentationPrompt(
-    transcript: string,
-    whisperSegments: any[],
-    duration: number,
-    fileName?: string,
-    customPrompt?: string
-  ): string {
-    if (customPrompt) {
-      return customPrompt
-        .replace(/{transcript}/g, transcript)
-        .replace(/{duration}/g, duration.toString())
-        .replace(/{whisperSegments}/g, JSON.stringify(whisperSegments, null, 2))
-    }
-
-    return `You are an expert video content analyzer. Analyze this transcript and create logical segments.
-
-**Video Information:**
-- File: ${fileName || 'Unknown'}
-- Duration: ${Math.floor(duration / 60)}m ${duration % 60}s
-- Total Whisper Segments: ${whisperSegments.length}
-
-**Full Transcript:**
-${transcript}
-
-**Whisper Timing Segments:**
-${whisperSegments.map((seg, i) => `[${i}] ${seg.start.toFixed(1)}s - ${seg.end.toFixed(1)}s: "${seg.text}"`).join('\n')}
-
-Create 4-8 logical segments with descriptive titles and descriptions. Respond with JSON only:
-
-{
-  "segments": [
-    {
-      "id": "seg-1",
-      "title": "Descriptive title",
-      "description": "What happens in this segment",
-      "whisperSegmentStart": 0,
-      "whisperSegmentEnd": 5
-    }
-  ],
-  "reasoning": "Brief explanation"
-}`
-  }
-
-  private parseSegmentationResponse(
-    response: string,
-    whisperSegments: any[],
-    duration: number
-  ): { segments: any[]; reasoning?: string } {
-    try {
-      console.log(`🔍 DEBUG: Raw LLM response length:`, response.length)
-      console.log(`🔍 DEBUG: Raw LLM response preview:`, response.substring(0, 500) + '...')
-      
-      const jsonMatch = response.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) {
-        throw new Error('No JSON found in LLM response')
-      }
-
-      console.log(`🔍 DEBUG: Extracted JSON:`, jsonMatch[0].substring(0, 500) + '...')
-      const parsed = JSON.parse(jsonMatch[0])
-      console.log(`🔍 DEBUG: Parsed LLM segments count:`, parsed.segments?.length || 0)
-      
-      const segments = parsed.segments.map((seg: any, index: number) => {
-        let startTime: number
-        let endTime: number
-        
-        console.log(`🔍 DEBUG: LLM segment ${index}: whisperStart=${seg.whisperSegmentStart}, whisperEnd=${seg.whisperSegmentEnd}`)
-        
-        // Handle both whisper segment indices AND direct time values
-        if (seg.whisperSegmentStart !== undefined && seg.whisperSegmentEnd !== undefined) {
-          // Use whisper segment indices
-          const startIdx = Math.max(0, seg.whisperSegmentStart || 0)
-          const endIdx = Math.min(whisperSegments.length - 1, seg.whisperSegmentEnd || 0)
-          
-          console.log(`🔍 DEBUG: Mapping indices ${startIdx}-${endIdx} to whisper segments`)
-          console.log(`🔍 DEBUG: Whisper[${startIdx}]: ${whisperSegments[startIdx]?.start}s-${whisperSegments[startIdx]?.end}s`)
-          console.log(`🔍 DEBUG: Whisper[${endIdx}]: ${whisperSegments[endIdx]?.start}s-${whisperSegments[endIdx]?.end}s`)
-          
-          startTime = whisperSegments[startIdx]?.start || 0
-          endTime = whisperSegments[endIdx]?.end || 0
-        } else if (seg.startTime !== undefined && seg.endTime !== undefined) {
-          // Use direct time values
-          startTime = seg.startTime
-          endTime = seg.endTime
-        } else {
-          // Fallback to equal distribution
-          const segmentDuration = duration / parsed.segments.length
-          startTime = index * segmentDuration
-          endTime = (index + 1) * segmentDuration
-        }
-        
-        const isLastSegment = index === parsed.segments.length - 1
-        
-        return {
-          id: `seg-${index + 1}`,
-          title: seg.title || `Segment ${index + 1}`,
-          description: seg.description || '',
-          startTime: Math.floor(startTime),
-          endTime: isLastSegment ? Math.ceil(duration) : Math.floor(endTime)
-        }
-      })
-
-      return {
-        segments: this.validateAndFixSegments(segments),
-        reasoning: parsed.reasoning
-      }
-    } catch (error) {
-      console.error('Failed to parse LLM response:', error)
-      throw error
-    }
-  }
-
-  private validateAndFixSegments(segments: any[]): any[] {
-    const MIN_DURATION = 10 // 10 seconds minimum
-    
-    console.log(`🔍 DEBUG: Input segments for validation:`, segments.length)
-    segments.forEach((seg, i) => {
-      const duration = seg.endTime - seg.startTime
-      console.log(`🔍 DEBUG: Segment ${i}: "${seg.title}" (${seg.startTime}s-${seg.endTime}s, duration: ${duration}s)`)
-    })
-    
-    // Sort and validate segments
-    const validSegments = segments
-      .sort((a, b) => a.startTime - b.startTime)
-      .filter(seg => {
-        const duration = seg.endTime - seg.startTime
-        const isValid = duration >= MIN_DURATION
-        if (!isValid) {
-          console.log(`🚫 DEBUG: Filtering out short segment: "${seg.title}" (${duration}s < ${MIN_DURATION}s)`)
-        }
-        return isValid
-      })
-      
-    console.log(`🔍 DEBUG: Valid segments after filtering:`, validSegments.length)
-
-    // Fix gaps and overlaps
-    for (let i = 0; i < validSegments.length - 1; i++) {
-      const current = validSegments[i]
-      const next = validSegments[i + 1]
-      
-      if (current.endTime > next.startTime) {
-        current.endTime = next.startTime
-      } else if (current.endTime < next.startTime) {
-        current.endTime = next.startTime
-      }
-    }
-
-    return validSegments
   }
 
   private cleanupJobFile(filePath: string) {

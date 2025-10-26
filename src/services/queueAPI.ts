@@ -37,10 +37,27 @@ class QueueAPIService {
         try {
           const data = JSON.parse(event.data)
           
+          console.log('📡 WebSocket message received:', {
+            type: data.type,
+            jobId: data.jobId,
+            status: data.status,
+            progress: data.progress,
+            hasResult: !!data.result,
+            resultPreview: data.result ? {
+              jobId: data.result.jobId,
+              segmentCount: data.result.segmentCount,
+              hasSegments: !!data.result.segments,
+              hasTranscript: !!data.result.transcript
+            } : null
+          })
+          
           if (data.type === 'job-update' && data.jobId) {
             const callbacks = this.subscribers.get(data.jobId)
             if (callbacks) {
+              console.log(`📡 Calling ${callbacks.size} callbacks for job ${data.jobId}`)
               callbacks.forEach(callback => callback(data))
+            } else {
+              console.log(`⚠️ No callbacks registered for job ${data.jobId}`)
             }
           }
         } catch (error) {
