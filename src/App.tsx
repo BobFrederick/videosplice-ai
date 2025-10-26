@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Brain } from '@phosphor-icons/react'
 import { Toaster } from '@/components/ui/sonner'
 import { ProjectView } from '@/components/ProjectView'
-import { SettingsDialog } from '@/components/SettingsDialog'
+import { SettingsPage } from '@/components/SettingsPage'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { BullMQQueue } from '@/components/BullMQQueue'
+import { Sidebar } from '@/components/Sidebar'
 import type { Project } from '@/lib/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { useTheme } from '@/hooks/useTheme'
@@ -15,6 +15,7 @@ function App() {
   
   const [projects, setProjects] = useLocalStorage<Project[]>('video-projects', [])
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
+  const [currentView, setCurrentView] = useState<'queue' | 'settings'>('queue')
 
   const projectsList = Array.isArray(projects) ? projects : []
   const currentProject = projectsList.find((p) => p.id === currentProjectId)
@@ -153,28 +154,35 @@ function App() {
 
   // Show the main BullMQ queue interface
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#282c34]">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8 text-center">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 bg-purple-600 rounded-xl">
-              <Brain className="h-8 w-8 text-white" />
+    <div className="min-h-screen bg-gray-50 dark:bg-[#282c34] flex">
+      <Sidebar currentView={currentView} onNavigate={setCurrentView} />
+      
+      <div className="flex-1 ml-64">
+        <header className="bg-white dark:bg-[#21252b] border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {currentView === 'queue' ? 'Video Queue' : 'Settings'}
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {currentView === 'queue' 
+                  ? 'Intelligent video segmentation powered by local AI' 
+                  : 'Configure your application settings'}
+              </p>
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-              VideoSplice AI
-            </h1>
+            <ThemeToggle />
           </div>
-          <p className="text-gray-600 dark:text-gray-400 text-lg max-w-2xl mx-auto">
-            Intelligent video segmentation powered by local AI with BullMQ job queue system.
-          </p>
-        </div>
+        </header>
 
-        <div className="flex items-center justify-end gap-2 mb-6">
-          <ThemeToggle />
-          <SettingsDialog />
-        </div>
-
-        <BullMQQueue onViewProject={handleViewProject} />
+        <main className="p-6">
+          {currentView === 'queue' && (
+            <BullMQQueue onViewProject={handleViewProject} />
+          )}
+          
+          {currentView === 'settings' && (
+            <SettingsPage />
+          )}
+        </main>
 
         <Toaster />
       </div>
