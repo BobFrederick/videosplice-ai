@@ -1,6 +1,6 @@
 # Contributing to Splice
 
-First off, thank you for considering contributing to Splice! It's people like you that make Splice such a great tool.
+Thanks for considering contributing to Splice! Would love to learn and work together to make Splice even better.
 
 ## Code of Conduct
 
@@ -169,6 +169,7 @@ Currently, the project uses manual testing. We welcome contributions to add auto
 - [ ] Keyboard shortcuts documentation
 - [ ] Video preview in export view
 - [ ] Segment merging functionality
+- [ ] Undo/redo support
 - [ ] Custom color themes
 - [ ] Export presets (quality settings)
 
