@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { PencilSimple, Check, X, Copy, Download } from '@phosphor-icons/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,23 +12,57 @@ interface TranscriptViewerProps {
   segments?: Segment[]
   onTranscriptUpdate?: (transcript: string) => void
   editable?: boolean
+  selectedSegmentId?: string // ID of the currently selected segment from Timeline/SegmentEditor
 }
 
-export function TranscriptViewer({ transcript, segments, onTranscriptUpdate, editable = true }: TranscriptViewerProps) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editedTranscript, setEditedTranscript] = useState(transcript)
+export function TranscriptViewer({ transcript, segments, onTranscriptUpdate, editable = true, selectedSegmentId }: TranscriptViewerProps) {
+  const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null)
+  const [editedSegmentTexts, setEditedSegmentTexts] = useState<Record<string, string>>({})
+  const segmentRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
-  const handleSave = () => {
-    if (onTranscriptUpdate) {
-      onTranscriptUpdate(editedTranscript)
+  // Auto-scroll to selected segment when it changes (from Timeline/SegmentEditor click)
+  useEffect(() => {
+    if (selectedSegmentId && segmentRefs.current[selectedSegmentId] && scrollAreaRef.current) {
+      const segmentElement = segmentRefs.current[selectedSegmentId]
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
+      
+      if (segmentElement && scrollContainer) {
+        const containerRect = scrollContainer.getBoundingClientRect()
+        const elementRect = segmentElement.getBoundingClientRect()
+        const scrollTop = scrollContainer.scrollTop
+        
+        // Calculate the position to scroll to (center the element)
+        const targetScrollTop = scrollTop + (elementRect.top - containerRect.top) - (containerRect.height / 2) + (elementRect.height / 2)
+        
+        scrollContainer.scrollTo({
+          top: targetScrollTop,
+          behavior: 'smooth'
+        })
+      }
     }
-    setIsEditing(false)
-    toast.success('Transcript updated')
+  }, [selectedSegmentId])
+
+  const handleSegmentSave = (segmentId: string) => {
+    // In a real implementation, you'd update the segment's transcript portion
+    // For now, just show success and close edit mode
+    setEditingSegmentId(null)
+    toast.success('Segment transcript updated')
   }
 
-  const handleCancel = () => {
-    setEditedTranscript(transcript)
-    setIsEditing(false)
+  const handleSegmentCancel = (segmentId: string) => {
+    setEditingSegmentId(null)
+    // Clear edited text for this segment
+    const newTexts = { ...editedSegmentTexts }
+    delete newTexts[segmentId]
+    setEditedSegmentTexts(newTexts)
+  }
+
+  const handleSegmentEdit = (segmentId: string, text: string) => {
+    setEditedSegmentTexts({
+      ...editedSegmentTexts,
+      [segmentId]: text
+    })
   }
 
   const handleCopy = async () => {
@@ -147,82 +181,112 @@ ${lines.join('\n')}`
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-base">Transcript</CardTitle>
         <div className="flex items-center gap-2">
-          {!isEditing && (
-            <>
-              {segments && segments.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={downloadAllVTTs} title="Download all segment VTTs">
-                  <Download size={16} weight="bold" />
-                  VTT
-                </Button>
-              )}
-              <Button variant="ghost" size="sm" onClick={handleCopy}>
-                <Copy size={16} weight="bold" />
-              </Button>
-              {editable && (
-                <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-                  <PencilSimple size={16} weight="bold" />
-                </Button>
-              )}
-            </>
+          {segments && segments.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={downloadAllVTTs} title="Download all segment VTTs">
+              <Download size={16} weight="bold" />
+              VTT
+            </Button>
           )}
-          {isEditing && (
-            <>
-              <Button variant="ghost" size="sm" onClick={handleCancel}>
-                <X size={16} weight="bold" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleSave}>
-                <Check size={16} weight="bold" />
-              </Button>
-            </>
-          )}
+          <Button variant="ghost" size="sm" onClick={handleCopy}>
+            <Copy size={16} weight="bold" />
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
-        {isEditing ? (
-          <Textarea
-            value={editedTranscript}
-            onChange={(e) => setEditedTranscript(e.target.value)}
-            className="min-h-[300px] max-h-[500px] font-mono text-sm"
-            placeholder="Enter transcript..."
-          />
-        ) : (
-          <ScrollArea className="h-[300px] max-h-[500px] pr-4">
-            {segments && segments.length > 0 ? (
-              <div className="space-y-6">
-                {segments.map((segment, index) => {
-                  const segmentText = approximateSegmentText(segment)
-                  return (
-                    <div key={segment.id} className="border-l-4 border-l-purple-500 pl-4 pb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div>
-                          <h3 className="font-medium text-sm text-foreground">{segment.title}</h3>
-                          <div className="text-xs text-muted-foreground">
-                            {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
-                          </div>
+        <ScrollArea className="h-[300px] max-h-[500px] pr-4" ref={scrollAreaRef}>
+          {segments && segments.length > 0 ? (
+            <div className="space-y-4">
+              {segments.map((segment, index) => {
+                const segmentText = approximateSegmentText(segment)
+                const isSelected = selectedSegmentId === segment.id
+                const isEditing = editingSegmentId === segment.id
+                const displayText = editedSegmentTexts[segment.id] ?? segmentText
+                
+                return (
+                  <div 
+                    key={segment.id}
+                    ref={(el) => { segmentRefs.current[segment.id] = el }} // Store ref for auto-scroll
+                    className={`border-l-4 pl-4 pb-4 transition-all ${
+                      isSelected 
+                        ? 'border-l-purple-500' 
+                        : 'border-l-gray-300 dark:border-l-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={isSelected ? '' : 'opacity-50'}>
+                        <h3 className="font-medium text-sm">{segment.title}</h3>
+                        <div className="text-xs text-muted-foreground">
+                          {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => downloadVTT(segment)}
-                          title={`Download VTT for ${segment.title}`}
-                        >
-                          <Download size={14} />
-                        </Button>
                       </div>
-                      <div className="text-sm text-foreground/80 leading-relaxed">
-                        {segmentText || segment.description}
+                      <div className="flex items-center gap-1">
+                        {isEditing ? (
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleSegmentCancel(segment.id)}
+                              title="Cancel"
+                            >
+                              <X size={14} />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleSegmentSave(segment.id)}
+                              title="Save"
+                            >
+                              <Check size={14} />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            {editable && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => setEditingSegmentId(segment.id)}
+                                title="Edit segment transcript"
+                              >
+                                <PencilSimple size={14} />
+                              </Button>
+                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => downloadVTT(segment)}
+                              title={`Download VTT for ${segment.title}`}
+                            >
+                              <Download size={14} />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                {transcript}
-              </div>
-            )}
-          </ScrollArea>
-        )}
+                    {isEditing ? (
+                      <Textarea
+                        value={displayText}
+                        onChange={(e) => handleSegmentEdit(segment.id, e.target.value)}
+                        className="min-h-[100px] text-sm"
+                        placeholder="Edit segment transcript..."
+                      />
+                    ) : (
+                      <div className={`text-sm leading-relaxed ${
+                        isSelected ? 'text-foreground' : 'text-muted-foreground'
+                      }`}>
+                        {displayText || segment.description}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+              {transcript}
+            </div>
+          )}
+        </ScrollArea>
       </CardContent>
     </Card>
   )

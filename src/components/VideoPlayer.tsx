@@ -25,6 +25,7 @@ export function VideoPlayer({
   const [progress, setProgress] = useState(0)
   const [volume, setVolume] = useState(100)
   const [isMuted, setIsMuted] = useState(false)
+  const [playbackRate, setPlaybackRate] = useState(1)
   const isSeekingRef = useRef(false)
 
   useEffect(() => {
@@ -174,6 +175,12 @@ export function VideoPlayer({
     setProgress(newTime)
   }
 
+  const handlePlaybackRateChange = (rate: number) => {
+    if (!videoRef.current) return
+    videoRef.current.playbackRate = rate
+    setPlaybackRate(rate)
+  }
+
   const formatTime = (seconds: number) => {
     if (!seconds || !isFinite(seconds)) return '0:00'
     const mins = Math.floor(seconds / 60)
@@ -226,7 +233,23 @@ export function VideoPlayer({
             </span>
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-1 ml-auto">
+            {/* Playback speed controls */}
+            <div className="flex items-center gap-1 mr-2 border-r pr-2">
+              {[1, 1.5, 2].map((rate) => (
+                <Button
+                  key={rate}
+                  onClick={() => handlePlaybackRateChange(rate)}
+                  size="sm"
+                  variant={playbackRate === rate ? "default" : "ghost"}
+                  className="h-8 px-2 text-xs"
+                  disabled={!src}
+                >
+                  {rate}x
+                </Button>
+              ))}
+            </div>
+
             <Button
               onClick={toggleMute}
               size="sm"

@@ -67,6 +67,22 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
     }
   }, [duration])
 
+  // Auto-select segment based on current playback time
+  // This enables highlighting when scrubbing the video
+  useEffect(() => {
+    if (project.segments && project.segments.length > 0) {
+      // Find the segment that contains the current time
+      const currentSegment = project.segments.find(
+        seg => currentTime >= seg.startTime && currentTime < seg.endTime
+      )
+      
+      // Only update if the segment has changed (avoid unnecessary re-renders)
+      if (currentSegment && currentSegment.id !== selectedSegmentId) {
+        setSelectedSegmentId(currentSegment.id)
+      }
+    }
+  }, [currentTime, project.segments])
+
   const handleSegmentChange = (segments: Segment[]) => {
     onProjectUpdate({ ...project, segments })
   }
@@ -75,6 +91,9 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
     onProjectUpdate({ ...project, transcript })
   }
 
+  // Handles segment selection from both SegmentEditor and Timeline clicks
+  // Updates selected state and seeks video to segment start time
+  // Also triggers SegmentEditor auto-scroll via selectedSegmentId change
   const handleSegmentSelect = (segment: Segment) => {
     setSelectedSegmentId(segment.id)
     setCurrentTime(segment.startTime)
@@ -165,13 +184,32 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
         startTime: Math.max(0, seg.startTime),
         endTime: Math.min(videoDuration, seg.endTime)
       }))
+      
+      // Sort segments by start time
+      const sortedSegments = validSegments.sort((a, b) => a.startTime - b.startTime)
+      
+      // Fix gaps between segments - make each segment's end connect to the next segment's start
+      const contiguousSegments = sortedSegments.map((seg, index) => {
+        if (index < sortedSegments.length - 1) {
+          const nextSeg = sortedSegments[index + 1]
+          // If there's a gap, extend this segment to meet the next one
+          if (seg.endTime < nextSeg.startTime) {
+            return { ...seg, endTime: nextSeg.startTime }
+          }
+          // If segments overlap, trim this one to meet the next
+          if (seg.endTime > nextSeg.startTime) {
+            return { ...seg, endTime: nextSeg.startTime }
+          }
+        }
+        return seg
+      })
 
-      if (validSegments.length === 0) {
+      if (contiguousSegments.length === 0) {
         throw new Error('No valid segments generated')
       }
 
-      handleSegmentChange(validSegments)
-      toast.success(`Generated ${validSegments.length} segments`, {
+      handleSegmentChange(contiguousSegments)
+      toast.success(`Generated ${contiguousSegments.length} segments`, {
         description: `Using ${settings.provider}/${settings.model}`,
       })
     } catch (error) {
@@ -313,6 +351,7 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
               currentTime={currentTime}
               onSegmentChange={handleSegmentChange}
               onSeek={handleSeek}
+              onSegmentClick={handleSegmentSelect} // Clicking timeline segment -> seeks video + scrolls SegmentEditor
             />
 
             {project.transcript && (
@@ -321,6 +360,7 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
                 segments={project.segments}
                 onTranscriptUpdate={handleTranscriptUpdate}
                 editable={true}
+                selectedSegmentId={selectedSegmentId}
               />
             )}
           </div>

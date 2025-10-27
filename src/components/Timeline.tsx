@@ -12,6 +12,7 @@ interface TimelineProps {
   duration: number
   currentTime: number
   onSeek: (time: number) => void
+  onSegmentClick?: (segment: Segment) => void // Called when user clicks a segment - triggers video seek and SegmentEditor scroll
   className?: string
 }
 
@@ -21,6 +22,7 @@ export function Timeline({
   duration,
   currentTime,
   onSeek,
+  onSegmentClick,
   className,
 }: TimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null)
@@ -357,10 +359,13 @@ export function Timeline({
         </div>
       </div>
 
-      <Card className="p-0 overflow-visible">
+      <Card className="p-0 overflow-visible bg-white dark:bg-[#21252b] border-gray-200 dark:border-gray-700">
         <div
           ref={timelineRef}
-          className="relative h-24 bg-muted/30 cursor-pointer overflow-visible"
+          className={cn(
+            "relative h-24 bg-white dark:bg-[#21252b] overflow-visible",
+            isShiftPressed ? "cursor-crosshair" : isCtrlPressed ? "cursor-crosshair" : "cursor-pointer"
+          )}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onClick={handleTimelineClick}
@@ -370,6 +375,21 @@ export function Timeline({
             MozUserSelect: 'none',
           }}
         >
+          {/* Mode indicator when modifier keys are pressed */}
+          {(isShiftPressed || isCtrlPressed) && hoverPosition !== null && (
+            <div
+              className="absolute -top-12 z-50 pointer-events-none"
+              style={{ left: `${duration > 0 ? (hoverPosition / duration) * 100 : 0}%`, transform: 'translateX(-50%)' }}
+            >
+              <div className={cn(
+                "px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap shadow-lg",
+                isShiftPressed ? "bg-green-500 text-white" : "bg-red-500 text-white"
+              )}>
+                {isShiftPressed ? "Add Segment" : "Remove Segment"}
+              </div>
+            </div>
+          )}
+          
           {timeGrid.map((time) => {
             const position = duration > 0 ? (time / duration) * 100 : 0
             return (
@@ -402,14 +422,23 @@ export function Timeline({
               <div
                 key={segment.id}
                 className={cn(
-                  'absolute top-0 h-full border-l border-r border-border overflow-hidden',
-                  color
+                  'absolute top-0 h-full border-l border-r border-border overflow-hidden transition-opacity hover:opacity-80',
+                  color,
+                  onSegmentClick && 'cursor-pointer'
                 )}
                 style={{ 
                   left: `${left}%`, 
                   width: `${width}%`,
                 }}
                 title={segment.title}
+                onClick={(e) => {
+                  // Only trigger segment click if no modifier keys are pressed
+                  // Shift+Click adds splits, Ctrl+Click removes segments
+                  if (onSegmentClick && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                    e.stopPropagation() // Prevent timeline seek click
+                    onSegmentClick(segment)
+                  }
+                }}
               >
                 <div className="absolute inset-0 flex flex-col items-center justify-center px-2 gap-0.5 overflow-hidden">
                   <span className="text-xs font-medium truncate w-full text-center whitespace-nowrap">{segment.title}</span>
