@@ -104,7 +104,7 @@ export function UploadZone({
           ) : isUploading ? (
             <VideoCamera size={48} weight="duotone" className="text-primary animate-pulse" />
           ) : (
-            <UploadSimple size={48} weight="duotone" className="text-muted-foreground" />
+            <UploadSimple size={48} weight="duotone" className="text-purple-600 dark:text-purple-400" />
           )}
 
           <div className="space-y-2">
