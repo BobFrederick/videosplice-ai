@@ -1,11 +1,15 @@
 version: 2
 updates:
+  # Frontend dependencies
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    open-pull-requests-limit: 5
 
-  - package-ecosystem: "devcontainers"
-    directory: "/"
+  # Backend dependencies
+  - package-ecosystem: "npm"
+    directory: "/server"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5

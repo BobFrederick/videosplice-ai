@@ -32,3 +32,52 @@ pids
 .devcontainer/
 
 .spark-workbench-id
+
+# Splice-specific ignores
+
+# Uploaded videos (temporary storage)
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Whisper model files (large binary files)
+*.bin
+*.pt
+*.pth
+ggml-*.bin
+whisper-*.bin
+
+# Redis dump files
+dump.rdb
+*.rdb
+
+# Process IDs
+*.pid
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Test files and coverage
+coverage/
+*.test.js
+*.spec.js
+test-results/
+
+# Build artifacts
+server/dist/
+server/build/
+
+# Local development
+.env.local
+.env.*.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS specific
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini

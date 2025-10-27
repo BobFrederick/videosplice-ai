@@ -454,7 +454,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
       <Alert>
         <AlertDescription className="flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <span className={isConnected ? 'text-purple-600 dark:text-purple-400' : 'text-gray-600 dark:text-gray-400'}>
+            <span className="text-black dark:text-white">
               Job Server: {isConnected ? 'Connected' : 'Disconnected'}
             </span>
             {isConnected ? (
@@ -780,7 +780,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
                 {(status === 'uploading' || status === 'processing' || status === 'waiting' || status === 'analyzing') && (
                   <div className="space-y-2">
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-blue-600">
+                      <span className="text-purple-600 dark:text-purple-400">
                         {status === 'uploading' && 'Uploading to server'}
                         {status === 'waiting' && 'Waiting in queue'}
                         {status === 'analyzing' && 'LLM analyzing content'}
@@ -797,7 +797,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
                       </span>
                       {/* Show percentage for active processing */}
                       {status === 'processing' && webSocketData?.progress !== undefined && (
-                        <span className="text-blue-600 font-semibold">
+                        <span className="text-purple-600 dark:text-purple-400 font-semibold">
                           {Math.round(webSocketData.progress)}%
                         </span>
                       )}
@@ -1024,7 +1024,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
                                     onViewProject(job.data?.projectId || job.id, job)
                                   }
                                 }}
-                                className="text-xs bg-blue-50 hover:bg-blue-100"
+                                className="text-xs bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30"
                               >
                                 🔍 Debug View
                               </Button>

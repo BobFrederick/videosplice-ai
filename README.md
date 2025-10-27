@@ -1,57 +1,193 @@
-# 🎬 VideoSplice AI
+# 🎬 Splice
 
-Intelligent video segmentation powered by local AI. Upload your videos and let our system automatically create meaningful chapters using advanced speech-to-text and content analysis.
+**AI-powered video segmentation that runs entirely on your local machine. (optional external LLM API support)**
+
+Splice automatically analyzes your videos and creates intelligent chapter segments using speech recognition and AI. No cloud services, no subscriptions—just your hardware and open-source AI models.
 
 ## ✨ Features
 
-- **🎙️ Local Whisper Transcription**: High-quality speech-to-text using Whisper.cpp with GPU acceleration
-- **🧠 Ollama LLM Integration**: Local AI-powered content analysis with Qwen2.5 7B and Mistral 7B models  
-- **⚡ Real-time Queue System**: Sequential job processing with live progress tracking
-- **📱 Modern UI**: Clean, responsive interface built with React 19 and Tailwind CSS
-- **💾 Local Storage**: No external dependencies - everything runs locally
-- **🔄 Progress Tracking**: Real-time updates with detailed status messages
+- 🎙️ **Local Speech Recognition** - Whisper.cpp with GPU acceleration
+- 🧠 **AI-Powered Segmentation** - Ollama LLM analyzes content for meaningful chapters, with configurable model selection.
+- ✂️ **Interactive Timeline** - Visual editor with drag-to-adjust segments
+- 📥 **Easy Export** - Download trimmed videos with matching subtitle files
+- 🎨 **Modern Interface** - Clean, dark-mode ready UI
+- 🔒 **100% Local** - Your videos never leave your computer
+
+> **Note:** Splice is designed as an internal tool for single-user or trusted team use. All users share the same job queue, so in multi-user deployments everyone can see each other's jobs. For user isolation, deploy separate instances.
 
 ## 🚀 Quick Start
 
-1. **Install Dependencies**
+### Prerequisites
+
+Before you begin, ensure you have:
+
+- **Node.js** 18+ ([Download](https://nodejs.org/))
+- **Redis** 6+ ([Installation Guide](https://redis.io/docs/install/))
+- **FFmpeg** ([Installation Guide](https://ffmpeg.org/download.html))
+- **Ollama** ([Installation Guide](https://ollama.ai/))
+- **Whisper.cpp** ([Setup Guide](https://github.com/ggerganov/whisper.cpp))
+
+### Installation
+
+1. **Clone the repository**
    ```bash
-   npm install
+   git clone https://github.com/BobFrederick/videosplice-ai.git
+   cd videosplice-ai
    ```
 
-2. **Start Whisper Server**
+2. **Run automated setup**
    ```bash
-   node whisper-server.mjs
+   chmod +x setup.sh
+   ./setup.sh
    ```
+   
+   This will check dependencies and install everything needed.
 
-3. **Launch Development Server**
-   ```bash
-   npm run dev
-   ```
+3. **Configure Whisper**
+   - Clone and build [Whisper.cpp](https://github.com/ggerganov/whisper.cpp)
+   - Download a model: `bash ./models/download-ggml-model.sh base.en`
+   - Update `whisper-server.mjs` with the correct model path
 
-4. **Open Browser**
-   Navigate to `http://localhost:5001`
+### Running Splice
 
-## 📁 Project Structure
-
+**Option 1: Use the start script (Recommended)**
+```bash
+./start-all.sh
 ```
-videosplice-ai/
-├── src/
-│   ├── components/          # React UI components
-│   ├── hooks/              # Custom React hooks (useLocalStorage)
-│   ├── lib/                # Core services (whisper, types, utilities)
-│   └── styles/             # CSS and theme files
-├── docs/                   # Project documentation
-├── whisper-server.mjs      # Whisper.cpp API server
-└── package.json           # Dependencies and scripts
+
+**Option 2: Docker Compose**
+```bash
+docker-compose up -d
+# Note: Whisper runs outside Docker - start it separately
+node whisper-server.mjs
 ```
+
+**Option 3: Manual start**
+
+Open 4 terminal windows:
+
+```bash
+# Terminal 1: Redis
+redis-server
+
+# Terminal 2: Ollama
+ollama serve
+
+# Terminal 3: Backend
+cd server && npm run dev
+
+# Terminal 4: Frontend  
+npm run dev
+```
+
+Then open your browser to **http://localhost:5001**
+
+## � Usage
+
+1. **Upload a video** - Drag and drop or click to select
+2. **Wait for processing** - Watch real-time progress as Splice transcribes and analyzes
+3. **Review segments** - Check the AI-generated chapters
+4. **Edit as needed** - Use the timeline to adjust segment boundaries
+5. **Export** - Download trimmed videos with subtitles
+
+### Timeline Shortcuts
+
+- **Click** - Seek to position
+- **Shift + Click** - Add segment split
+- **Ctrl + Click** - Remove segment
+- **Drag boundary** - Adjust segment timing
+- **Hover** - View timestamp
 
 ## 🛠️ Technology Stack
 
-- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS
-- **Backend**: Node.js Express server for Whisper processing  
-- **AI Models**: Whisper.cpp (transcription), Ollama (LLM analysis)
-- **Storage**: localStorage for offline-first experience
+**Frontend**
+- React 19, TypeScript, Vite
+- Tailwind CSS, shadcn/ui
 
-📄 License For Spark Template Resources 
+**Backend**
+- Node.js, Express, BullMQ
+- Redis, WebSockets
 
-The Spark Template files and resources from GitHub are licensed under the terms of the MIT license, Copyright GitHub, Inc.
+**AI/ML**
+- Whisper.cpp (transcription)
+- Ollama (segmentation)
+- FFmpeg (video processing)
+
+## � Deployment
+
+### For Developers
+- **Quick Setup**: Run `./setup.sh` for automated installation
+- **Docker**: Use `docker-compose up -d` for containerized deployment
+- **PM2**: Production process management with auto-restart
+
+### For Production/Internal Testing
+See [DEPLOYMENT.md](./docs/DEPLOYMENT.md) for:
+- Multi-user production setup with Nginx
+- Internal testing environment configuration  
+- PM2 process management
+- SSL/HTTPS configuration
+- Monitoring and logging
+- Backup strategies
+
+## �📁 Project Structure
+
+```
+splice/
+├── src/              # React frontend
+├── server/           # Express backend
+├── shared/           # Shared utilities
+├── docs/             # Documentation
+└── whisper-server.mjs # Whisper API server
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for:
+
+- Development setup
+- Coding standards
+- Pull request process
+- Areas we need help
+
+## � Documentation
+
+- [Changelog](./CHANGELOG.md) - Version history and release notes
+- [System Architecture](./docs/SYSTEM_ARCHITECTURE.md) - Technical overview
+- [Security](./docs/SECURITY.md) - Security considerations
+
+## 🐛 Troubleshooting
+
+**Whisper transcription fails**
+- Ensure your Whisper model path is correct in `whisper-server.mjs`
+- Check that the Whisper server is running on port 8000
+
+**Job gets stuck in "Processing"**
+- Verify Redis is running
+- Check that Ollama is serving the correct model
+- Review server logs for errors
+
+**Export downloads fail**
+- Ensure FFmpeg is installed and in your PATH
+- Check CORS settings in `server/src/app.ts`
+
+For more issues, check [GitHub Issues](https://github.com/BobFrederick/videosplice-ai/issues).
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Whisper.cpp](https://github.com/ggerganov/whisper.cpp) - Fast local transcription
+- [Ollama](https://ollama.ai/) - Local LLM inference
+- [shadcn/ui](https://ui.shadcn.com/) - Beautiful UI components
+- All our [contributors](./CONTRIBUTING.md)
+
+## 💬 Support
+
+- **Issues**: [GitHub Issues](https://github.com/BobFrederick/videosplice-ai/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/BobFrederick/videosplice-ai/discussions)
+
+---
+
+Made with ❤️ by the Splice community
