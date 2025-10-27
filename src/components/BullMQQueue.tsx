@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Trash2, Eye, Upload, RefreshCw, Film } from 'lucide-react'
+import { WifiHigh, WifiSlash } from '@phosphor-icons/react'
 import { UploadZone } from './UploadZone'
 import queueAPI from '@/services/queueAPI'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
@@ -438,7 +439,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
             Upload Video for Processing
           </CardTitle>
           <CardDescription>
-            Upload a video to process with BullMQ queue system. One job processes at a time to protect GPU resources.
+            Upload a video. One job processes at a time to protect GPU resources.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -452,16 +453,24 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
       {/* Connection Status */}
       <Alert>
         <AlertDescription className="flex items-center justify-between">
-          <span>
-            Queue Server: {isConnected ? '✅ Connected' : '❌ Disconnected'}
-            <Button 
+          <span className="flex items-center gap-2">
+            <span className={isConnected ? 'text-purple-600 dark:text-purple-400' : 'text-gray-600 dark:text-gray-400'}>
+              Job Server: {isConnected ? 'Connected' : 'Disconnected'}
+            </span>
+            {isConnected ? (
+              <WifiHigh className="w-5 h-5 text-purple-600 dark:text-purple-400"/>
+            ) : (
+              <WifiSlash className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+            )}
+            {/* Optional Test Connection Button */}
+            {/* <Button 
               variant="outline" 
               size="sm" 
               onClick={checkConnection}
               className="ml-2"
             >
               Test Connection
-            </Button>
+            </Button> */}
           </span>
           {stats && (() => {
             // Calculate actual user-visible stats

@@ -18,6 +18,9 @@ export function ExportView({ project, onClose }: ExportViewProps) {
   const [isExporting, setIsExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState(0)
+  const [downloadingSegmentTitle, setDownloadingSegmentTitle] = useState('')
 
   useEffect(() => {
     startExport()
@@ -58,6 +61,9 @@ export function ExportView({ project, onClose }: ExportViewProps) {
       }
       const thumbnailUrl = thumbnailCanvas.toDataURL('image/jpeg', 0.8)
       
+      const fileName = `${sanitizeFilename(project.name)}_segment_${String(i + 1).padStart(2, '0')}_${sanitizeFilename(segment.title)}.mp4`
+      const downloadUrl = `http://localhost:8080/api/segment/${project.jobId}/${segment.id}?startTime=${segment.startTime}&endTime=${segment.endTime}&fileName=${encodeURIComponent(fileName)}`
+      
       const exportedSegment: ExportedSegment = {
         id: segment.id,
         segmentNumber: i + 1,
@@ -68,8 +74,8 @@ export function ExportView({ project, onClose }: ExportViewProps) {
         duration: duration,
         fileSize: estimatedSize,
         thumbnailUrl,
-        downloadUrl: project.videoUrl || '',
-        fileName: `${sanitizeFilename(project.name)}_segment_${String(i + 1).padStart(2, '0')}_${sanitizeFilename(segment.title)}.mp4`,
+        downloadUrl,
+        fileName,
         status: 'completed',
       }
       
@@ -82,25 +88,116 @@ export function ExportView({ project, onClose }: ExportViewProps) {
   }
 
   const sanitizeFilename = (name: string): string => {
-    return name
-      .replace(/[^a-z0-9_\-\.]/gi, '_')
+    // Remove file extensions first (e.g., .mp4, .mov, etc.)
+    const nameWithoutExt = name.replace(/\.(mp4|mov|avi|mkv|webm|flv|wmv)$/i, '')
+    
+    // Replace invalid characters with underscores
+    return nameWithoutExt
+      .replace(/[^a-z0-9_\-]/gi, '_')
       .replace(/_+/g, '_')
       .replace(/^_|_$/g, '')
   }
 
-  const handleDownloadSegment = (segment: ExportedSegment) => {
-    const link = document.createElement('a')
-    link.href = segment.downloadUrl
-    link.download = segment.fileName
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+  const handleDownloadSegment = async (segment: ExportedSegment) => {
+    try {
+      setIsDownloading(true)
+      setDownloadProgress(0)
+      setDownloadingSegmentTitle(segment.title)
+
+      // Download video file
+      const response = await fetch(segment.downloadUrl)
+      if (!response.ok) throw new Error('Download failed')
+
+      const contentLength = response.headers.get('content-length')
+      const total = contentLength ? parseInt(contentLength, 10) : 0
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('No reader available')
+
+      const chunks: Uint8Array[] = []
+      let receivedLength = 0
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        chunks.push(value)
+        receivedLength += value.length
+
+        if (total > 0) {
+          const progress = (receivedLength / total) * 100
+          setDownloadProgress(progress)
+        }
+      }
+
+      // Combine chunks and create blob
+      const blob = new Blob(chunks, { type: 'video/mp4' })
+      const url = URL.createObjectURL(blob)
+
+      const link = document.createElement('a')
+      link.href = url
+      link.download = segment.fileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      // Download VTT subtitle file
+      // Extract base URL and query params separately
+      const urlParts = segment.downloadUrl.split('?')
+      const baseUrl = urlParts[0] // e.g., http://localhost:8080/api/segment/jobId/segmentId
+      const queryParams = urlParts[1] // e.g., startTime=...&endTime=...
+      const vttUrl = `${baseUrl}/vtt?${queryParams}`
+      
+      console.log('🎬 Downloading VTT from:', vttUrl)
+      
+      try {
+        const vttResponse = await fetch(vttUrl)
+        console.log('📝 VTT Response status:', vttResponse.status, vttResponse.statusText)
+        console.log('📝 VTT Content-Type:', vttResponse.headers.get('content-type'))
+        
+        if (vttResponse.ok) {
+          const vttBlob = await vttResponse.blob()
+          console.log('📝 VTT Blob size:', vttBlob.size, 'type:', vttBlob.type)
+          
+          const vttBlobUrl = URL.createObjectURL(vttBlob)
+          
+          const vttLink = document.createElement('a')
+          vttLink.href = vttBlobUrl
+          vttLink.download = segment.fileName.replace('.mp4', '.vtt')
+          document.body.appendChild(vttLink)
+          vttLink.click()
+          document.body.removeChild(vttLink)
+          URL.revokeObjectURL(vttBlobUrl)
+          
+          console.log('✅ VTT downloaded:', segment.fileName.replace('.mp4', '.vtt'))
+        } else {
+          const errorText = await vttResponse.text()
+          console.error('❌ VTT download failed:', vttResponse.status, errorText)
+        }
+      } catch (vttError) {
+        console.warn('VTT download failed (subtitles may not be available):', vttError)
+      }
+
+      setIsDownloading(false)
+      setDownloadProgress(0)
+      setDownloadingSegmentTitle('')
+    } catch (error) {
+      console.error('Download error:', error)
+      setIsDownloading(false)
+      setDownloadProgress(0)
+      setDownloadingSegmentTitle('')
+    }
   }
 
   const handleDownloadAll = async () => {
-    for (const segment of exportedSegments) {
-      await new Promise(resolve => setTimeout(resolve, 100))
-      handleDownloadSegment(segment)
+    for (let i = 0; i < exportedSegments.length; i++) {
+      const segment = exportedSegments[i]
+      await handleDownloadSegment(segment)
+      // Small delay between downloads
+      if (i < exportedSegments.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
     }
   }
 
@@ -112,14 +209,14 @@ export function ExportView({ project, onClose }: ExportViewProps) {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold">Export Complete</h1>
+              <h1 className="text-xl font-bold">Ready For Export</h1>
               <p className="text-xs text-muted-foreground">
                 {exportedSegments.length} of {project.segments.length} segments ready
               </p>
             </div>
             
             <div className="flex items-center gap-2">
-              {!isExporting && exportedSegments.length > 0 && (
+              {!isExporting && !isDownloading && exportedSegments.length > 0 && (
                 <Button onClick={handleDownloadAll}>
                   <Package size={16} weight="bold" className="mr-2" />
                   Download All ({exportedSegments.length})
@@ -131,17 +228,26 @@ export function ExportView({ project, onClose }: ExportViewProps) {
             </div>
           </div>
           
-          {isExporting && (
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  Processing segment {currentSegmentIndex + 1} of {project.segments.length}
-                </span>
-                <span className="font-medium">{Math.round(exportProgress)}%</span>
-              </div>
-              <Progress value={exportProgress} className="h-2" />
-            </div>
-          )}
+          {/* Always reserve space for progress bar to prevent layout shift */}
+          <div className="mt-4 space-y-2 min-h-[52px]">
+            {(isExporting || isDownloading) && (
+              <>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-purple-600 dark:text-purple-400">
+                    {isExporting ? (
+                      <>Processing segment {currentSegmentIndex + 1} of {project.segments.length}</>
+                    ) : (
+                      <>Trimming video segment: {downloadingSegmentTitle}</>
+                    )}
+                  </span>
+                  <span className="text-purple-600 dark:text-purple-400 font-semibold">
+                    {Math.round(isExporting ? exportProgress : downloadProgress)}%
+                  </span>
+                </div>
+                <Progress value={isExporting ? exportProgress : downloadProgress} className="h-2" />
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -151,7 +257,7 @@ export function ExportView({ project, onClose }: ExportViewProps) {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <CheckCircle size={24} weight="duotone" className="text-accent" />
+                  <CheckCircle size={24} weight="duotone" className="text-purple-600 dark:text-purple-400" />
                   Export Summary
                 </CardTitle>
                 <CardDescription>
@@ -221,6 +327,7 @@ export function ExportView({ project, onClose }: ExportViewProps) {
                       <Button
                         size="sm"
                         onClick={() => handleDownloadSegment(segment)}
+                        disabled={isDownloading}
                       >
                         <DownloadSimple size={16} weight="bold" className="mr-2" />
                         Download

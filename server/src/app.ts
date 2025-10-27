@@ -219,6 +219,117 @@ app.get('/api/segment/:jobId/:segmentId', async (req, res) => {
   }
 })
 
+// Download VTT subtitle file for segment
+app.get('/api/segment/:jobId/:segmentId/vtt', async (req, res) => {
+  try {
+    const { jobId, segmentId } = req.params
+    const { startTime, endTime, fileName } = req.query
+
+    console.log(`🎬 VTT Request - Job: ${jobId}, Segment: ${segmentId}`)
+    console.log(`🎬 VTT Params - Start: ${startTime}, End: ${endTime}`)
+
+    if (!startTime || !endTime) {
+      return res.status(400).json({
+        error: 'Missing parameters',
+        message: 'startTime and endTime are required'
+      })
+    }
+
+    // Get job data to retrieve whisper segments
+    const job = await queueService.getJob(jobId)
+    
+    console.log(`🔍 Job found:`, !!job)
+    console.log(`🔍 Job returnvalue:`, !!job?.returnvalue)
+    
+    if (!job || !job.returnvalue) {
+      return res.status(404).json({
+        error: 'Job not found',
+        message: 'Job data not available'
+      })
+    }
+
+    console.log(`🔍 Job returnvalue keys:`, Object.keys(job.returnvalue))
+    console.log(`🔍 whisperSegments exists:`, !!job.returnvalue.whisperSegments)
+    console.log(`🔍 whisperSegments length:`, job.returnvalue.whisperSegments?.length || 0)
+
+    const whisperSegments = job.returnvalue.whisperSegments || []
+    
+    if (whisperSegments.length === 0) {
+      return res.status(404).json({
+        error: 'No subtitle data available',
+        message: 'This video does not have subtitle data'
+      })
+    }
+
+    const start = parseFloat(startTime as string)
+    const end = parseFloat(endTime as string)
+
+    // Filter and adjust whisper segments for this time range
+    const filteredSegments = whisperSegments
+      .filter((seg: any) => {
+        // Include segments that overlap with the requested time range
+        return seg.start < end && seg.end > start
+      })
+      .map((seg: any) => {
+        // Adjust timestamps to be relative to segment start (0-based)
+        return {
+          start: Math.max(0, seg.start - start),
+          end: Math.min(end - start, seg.end - start),
+          text: seg.text.trim()
+        }
+      })
+
+    // Generate VTT content
+    const vttContent = generateVTTContent(filteredSegments, fileName as string || `Segment ${segmentId}`)
+
+    console.log(`📝 Generated VTT for segment: ${jobId}/${segmentId} (${filteredSegments.length} cues)`)
+
+    // Set response headers for download
+    // Replace only the LAST .mp4 extension with .vtt
+    const vttFileName = typeof fileName === 'string' && fileName 
+      ? fileName.replace(/\.mp4$/, '.vtt') 
+      : `segment_${segmentId}.vtt`
+    
+    res.setHeader('Content-Type', 'text/vtt; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${vttFileName}"`)
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
+
+    res.send(vttContent)
+
+  } catch (error) {
+    console.error('❌ Error generating VTT:', error)
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Failed to generate VTT',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
+  }
+})
+
+// Helper function to generate VTT content
+function generateVTTContent(segments: Array<{ start: number; end: number; text: string }>, title: string): string {
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
+    const ms = Math.floor((seconds % 1) * 1000)
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`
+  }
+
+  let vttContent = `WEBVTT - ${title}\n\n`
+  vttContent += `NOTE\nGenerated from VideoSplice AI\n\n`
+
+  segments.forEach((seg, index) => {
+    vttContent += `${index + 1}\n`
+    vttContent += `${formatTime(seg.start)} --> ${formatTime(seg.end)}\n`
+    vttContent += `${seg.text}\n\n`
+  })
+
+  return vttContent
+}
+
 // Upload video and create job
 app.post('/api/upload', upload.single('video'), async (req, res) => {
   try {

@@ -340,7 +340,7 @@ export function Timeline({
 
   return (
     <div className={cn('space-y-4', className)}>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-8">
         <h3 className="text-sm font-medium">Timeline</h3>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -360,7 +360,7 @@ export function Timeline({
       <Card className="p-0 overflow-visible">
         <div
           ref={timelineRef}
-          className="relative h-24 bg-muted/30 cursor-pointer overflow-hidden"
+          className="relative h-24 bg-muted/30 cursor-pointer overflow-visible"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onClick={handleTimelineClick}
@@ -388,12 +388,13 @@ export function Timeline({
           {segments.map((segment, index) => {
             const left = duration > 0 ? (segment.startTime / duration) * 100 : 0
             const width = duration > 0 ? ((segment.endTime - segment.startTime) / duration) * 100 : 0
+            // Analogous purple theme colors
             const colors = [
-              'bg-chart-1/20',
-              'bg-chart-2/20',
-              'bg-chart-3/20',
-              'bg-chart-4/20',
-              'bg-chart-5/20',
+              'bg-purple-500/20',
+              'bg-violet-500/20',
+              'bg-fuchsia-500/20',
+              'bg-pink-500/20',
+              'bg-indigo-500/20',
             ]
             const color = colors[index % colors.length]
 
@@ -408,6 +409,7 @@ export function Timeline({
                   left: `${left}%`, 
                   width: `${width}%`,
                 }}
+                title={segment.title}
               >
                 <div className="absolute inset-0 flex flex-col items-center justify-center px-2 gap-0.5 overflow-hidden">
                   <span className="text-xs font-medium truncate w-full text-center whitespace-nowrap">{segment.title}</span>
@@ -461,9 +463,13 @@ export function Timeline({
 
           {hoverPosition !== null && findNearestBoundary(hoverPosition, 3) === null && (
             <div
-              className="absolute top-0 h-full w-px bg-foreground/20 pointer-events-none z-15"
+              className="absolute top-0 h-full w-px bg-foreground/20 pointer-events-none z-30"
               style={{ left: `${duration > 0 ? (hoverPosition / duration) * 100 : 0}%` }}
-            />
+            >
+              <div className="absolute -top-6 left-0 -translate-x-1/2 px-1.5 py-0.5 rounded text-xs whitespace-nowrap bg-foreground text-background font-medium shadow-md z-50">
+                {formatTime(hoverPosition)}
+              </div>
+            </div>
           )}
 
           <div
