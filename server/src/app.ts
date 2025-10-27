@@ -8,6 +8,7 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import { v4 as uuidv4 } from 'uuid'
+import { spawn } from 'child_process'
 import queueService from './services/queueService'
 import wsService from './services/websocketService'
 import { VideoJob, ProcessingOptions } from './types'
@@ -34,21 +35,22 @@ app.use(cors({
   origin: true, // Allow all origins for development
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  exposedHeaders: ['Content-Disposition', 'Content-Length', 'Content-Type']
 }))
 
 // Additional CORS headers for strict browsers
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*')
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Accept, Origin')
-  res.header('Access-Control-Allow-Credentials', 'true')
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Accept, Origin')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length, Content-Type')
   
   if (req.method === 'OPTIONS') {
-    res.sendStatus(200)
-  } else {
-    next()
+    return res.sendStatus(200)
   }
+  next()
 })
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
@@ -127,6 +129,93 @@ app.get('/api/video/:jobId', (req, res) => {
       error: 'Failed to serve video',
       details: error instanceof Error ? error.message : 'Unknown error'
     })
+  }
+})
+
+// Download trimmed segment
+app.get('/api/segment/:jobId/:segmentId', async (req, res) => {
+  try {
+    const { jobId, segmentId } = req.params
+    const { startTime, endTime, fileName } = req.query
+    
+    const videoPath = path.join(UPLOAD_DIR, `${jobId}.mp4`)
+    
+    // Check if file exists
+    if (!fs.existsSync(videoPath)) {
+      console.log(`❌ Video file not found: ${videoPath}`)
+      return res.status(404).json({
+        error: 'Video file not found',
+        message: 'The video file may have been cleaned up or the job ID is invalid'
+      })
+    }
+
+    if (!startTime || !endTime) {
+      return res.status(400).json({
+        error: 'Missing parameters',
+        message: 'startTime and endTime are required'
+      })
+    }
+
+    const start = parseFloat(startTime as string)
+    const end = parseFloat(endTime as string)
+    const duration = end - start
+
+    console.log(`✂️ Trimming segment: ${jobId} (${start}s - ${end}s, duration: ${duration}s)`)
+
+    // Set response headers for forced download
+    res.setHeader('Content-Type', 'video/mp4')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName || `segment_${segmentId}.mp4`}"`)
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
+
+    // Use ffmpeg to trim and stream the video
+    // Using re-encoding for accurate trimming (codec copy can be inaccurate at keyframes)
+    const ffmpeg = spawn('ffmpeg', [
+      '-i', videoPath,
+      '-ss', start.toString(),
+      '-t', duration.toString(),
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-crf', '23',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-avoid_negative_ts', 'make_zero',
+      '-f', 'mp4',
+      '-movflags', 'frag_keyframe+empty_moov', // Enable streaming
+      'pipe:1' // Output to stdout
+    ])
+
+    ffmpeg.stdout.pipe(res)
+
+    ffmpeg.stderr.on('data', (data) => {
+      console.log(`ffmpeg: ${data}`)
+    })
+
+    ffmpeg.on('error', (error) => {
+      console.error('❌ ffmpeg error:', error)
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: 'Failed to trim video',
+          details: error.message
+        })
+      }
+    })
+
+    ffmpeg.on('close', (code) => {
+      if (code !== 0) {
+        console.error(`❌ ffmpeg exited with code ${code}`)
+      } else {
+        console.log(`✅ Segment trimmed successfully: ${segmentId}`)
+      }
+    })
+
+  } catch (error) {
+    console.error('❌ Error trimming segment:', error)
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Failed to trim segment',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
   }
 })
 

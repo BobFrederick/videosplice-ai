@@ -5,11 +5,51 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Trash2, Eye, Upload, RefreshCw } from 'lucide-react'
+import { Trash2, Eye, Upload, RefreshCw, Film } from 'lucide-react'
 import { UploadZone } from './UploadZone'
 import queueAPI from '@/services/queueAPI'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { toast } from 'sonner'
+
+// Video Thumbnail Component
+function VideoThumbnail({ file }: { file: File }) {
+  const [thumbnail, setThumbnail] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    const video = document.createElement('video')
+    const canvas = document.createElement('canvas')
+    const url = URL.createObjectURL(file)
+
+    video.src = url
+    video.currentTime = 1 // Seek to 1 second for thumbnail
+    
+    video.addEventListener('loadeddata', () => {
+      canvas.width = 96
+      canvas.height = 54
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        setThumbnail(canvas.toDataURL())
+      }
+      URL.revokeObjectURL(url)
+    })
+
+    return () => {
+      URL.revokeObjectURL(url)
+    }
+  }, [file])
+
+  return (
+    <div className="w-24 h-[54px] bg-gray-200 dark:bg-gray-800 rounded overflow-hidden flex items-center justify-center">
+      {thumbnail ? (
+        <img src={thumbnail} alt="Video thumbnail" className="w-full h-full object-cover" />
+      ) : (
+        <Film className="w-8 h-8 text-gray-400" />
+      )}
+    </div>
+  )
+}
 
 interface QueueJob {
   id: string
@@ -364,13 +404,13 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
 
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case 'completed': return 'bg-green-500'
-      case 'failed': return 'bg-red-500'
-      case 'processing': return 'bg-blue-500'
-      case 'analyzing': return 'bg-purple-500'
-      case 'waiting': return 'bg-yellow-500'
-      case 'uploading': return 'bg-orange-500'
-      default: return 'bg-gray-500'
+      case 'completed': return 'bg-purple-600 text-white dark:bg-purple-500 dark:text-white'
+      case 'failed': return 'bg-red-500 text-white dark:bg-red-600 dark:text-white'
+      case 'processing': return 'bg-purple-400 text-white dark:bg-purple-600 dark:text-white'
+      case 'analyzing': return 'bg-purple-500 text-white dark:bg-purple-500 dark:text-white'
+      case 'waiting': return 'bg-purple-300 text-gray-900 dark:bg-purple-700 dark:text-white'
+      case 'uploading': return 'bg-purple-200 text-gray-900 dark:bg-purple-800 dark:text-white'
+      default: return 'bg-gray-400 text-white dark:bg-gray-600 dark:text-white'
     }
   }
 
@@ -582,13 +622,21 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
           
           return (
             <Card key={tempId}>
-              <CardContent className="py-4 space-y-4">
-                {/* Header with title, badge, and buttons */}
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h4 className="font-medium">{fileName}</h4>
-                      <Badge className={getStatusColor(status)}>
+              <CardContent className="py-4">
+                <div className="flex gap-4">
+                  {/* Video Thumbnail */}
+                  <div className="flex-shrink-0">
+                    <VideoThumbnail file={pendingJob.file} />
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 space-y-4">
+                    {/* Header with title, badge, and buttons */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-medium">{fileName}</h4>
+                          <Badge className={getStatusColor(status)}>
                         {status === 'uploading' && (
                           <>Uploading<span className="ml-1">
                             <span className="animate-bounce inline-block" style={{animationDelay: '0ms'}}>.</span>
@@ -775,6 +823,8 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
                     ❌ Processing failed: {webSocketData?.error || 'Unknown error'}
                   </div>
                 )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )
