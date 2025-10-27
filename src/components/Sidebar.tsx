@@ -42,21 +42,6 @@ export function Sidebar({ currentView, onNavigate }: SidebarProps) {
 
           <li>
             <button
-              onClick={() => onNavigate('queue')}
-              className={cn(
-                'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors',
-                currentView === 'queue'
-                  ? 'bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-              )}
-            >
-              <Queue className="h-5 w-5" weight={currentView === 'queue' ? 'fill' : 'regular'} />
-              <span className="font-medium">Video Queue</span>
-            </button>
-          </li>
-
-          <li>
-            <button
               onClick={() => onNavigate('settings')}
               className={cn(
                 'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors',

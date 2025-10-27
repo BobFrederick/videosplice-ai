@@ -188,6 +188,7 @@ class VideoProcessor {
           fileName,
           duration: transcriptionResult.duration,
           transcript: transcriptionResult.transcript,
+          whisperSegments: transcriptionResult.segments, // Include whisper segments for VTT generation
           segments: segmentationResult.segments,
           segmentCount: segmentationResult.segments.length,
           reasoning: segmentationResult.reasoning,

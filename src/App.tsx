@@ -162,11 +162,11 @@ function App() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {currentView === 'queue' ? 'Video Queue' : 'Settings'}
+                {currentView === 'queue' ? 'Get Started' : 'Settings'}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 {currentView === 'queue' 
-                  ? 'Intelligent video segmentation powered by local AI' 
+                  ? 'Intelligent video segmentation powered by AI' 
                   : 'Configure your application settings'}
               </p>
             </div>
