@@ -370,7 +370,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
   }
 
   const getJobStatus = (job: QueueJob): string => {
-    if (job.failedReason) return 'failed'
+    // Check for successful completion FIRST (even if there were previous failed attempts)
     if (job.finishedOn) {
       // Add debugging to see what's in returnvalue
       console.log(`🔍 Job ${job.id} finished, returnvalue:`, job.returnvalue)
@@ -383,6 +383,11 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
         console.log(`🔍 Found results in job.data for ${job.id}:`, job.data)
         return 'completed'
       } else {
+        // No results but job is finished - check if it actually failed
+        if (job.failedReason) {
+          return 'failed'
+        }
+        
         // Check if job has been finished for more than 2 minutes - might be stuck
         const finishedAge = Date.now() - job.finishedOn
         if (finishedAge > 2 * 60 * 1000) { // 2 minutes
@@ -398,6 +403,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
       }
     }
     if (job.processedOn) return 'processing'
+    if (job.failedReason) return 'failed'
     return 'waiting'
   }
 

@@ -70,6 +70,9 @@ module.exports = {
       instances: 1,
       exec_mode: 'fork',
       watch: false,
+      env: {
+        PORT: 8000
+      },
       error_file: './logs/prod-whisper-error.log',
       out_file: './logs/prod-whisper-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
