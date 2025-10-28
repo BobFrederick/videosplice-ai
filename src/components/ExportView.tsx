@@ -8,6 +8,10 @@ import { Separator } from '@/components/ui/separator'
 import type { Project, Segment, ExportedSegment } from '@/lib/types'
 import { formatDuration, formatFileSize } from '@/lib/helpers'
 
+// API configuration
+const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8080'
+const API_URL = `${API_BASE_URL}/api`
+
 interface ExportViewProps {
   project: Project
   onClose: () => void
@@ -62,7 +66,7 @@ export function ExportView({ project, onClose }: ExportViewProps) {
       const thumbnailUrl = thumbnailCanvas.toDataURL('image/jpeg', 0.8)
       
       const fileName = `${sanitizeFilename(project.name)}_segment_${String(i + 1).padStart(2, '0')}_${sanitizeFilename(segment.title)}.mp4`
-      const downloadUrl = `http://localhost:8080/api/segment/${project.jobId}/${segment.id}?startTime=${segment.startTime}&endTime=${segment.endTime}&fileName=${encodeURIComponent(fileName)}`
+      const downloadUrl = `${API_URL}/segment/${project.jobId}/${segment.id}?startTime=${segment.startTime}&endTime=${segment.endTime}&fileName=${encodeURIComponent(fileName)}`
       
       const exportedSegment: ExportedSegment = {
         id: segment.id,

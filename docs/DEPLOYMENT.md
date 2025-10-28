@@ -83,11 +83,17 @@ sudo systemctl start redis
 # Start Ollama
 pm2 start "ollama serve" --name ollama
 
+# Pull the model (first time only)
+ollama pull qwen2.5:7b
+
 # Start Whisper
 pm2 start whisper-server.mjs --name whisper
 
 # Start Backend
-pm2 start server/dist/app.js --name splice-backend
+pm2 start server/dist/server/src/app.js --name splice-backend
+
+# Start Worker (CRITICAL - processes video jobs)
+pm2 start server/dist/server/src/workers/videoProcessor.js --name splice-worker
 
 # Start Frontend (with serve)
 npm install -g serve

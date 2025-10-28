@@ -11,8 +11,8 @@ interface ProcessingOptions {
 }
 
 class QueueAPIService {
-  private baseUrl = 'http://localhost:8080/api'
-  private wsUrl = 'ws://localhost:8081'
+  private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+  private wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8081'
   private ws: WebSocket | null = null
   private subscribers: Map<string, Set<(update: any) => void>> = new Map()
 

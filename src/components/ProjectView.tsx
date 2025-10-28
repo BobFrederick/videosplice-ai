@@ -388,13 +388,20 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
                     </Label>
                     <Textarea
                       id="custom-instructions"
-                      placeholder="e.g., Create more granular segments focusing on specific topics, or combine similar sections..."
+                      placeholder={`Be specific! Examples:
+• "Add prefix 'SECTION-' to ALL segment TITLES"
+• "Create exactly 5 segments of equal LENGTH"
+• "Use technical terminology in TITLES"
+• "Keep segments under 2 minutes each"
+• "First segment TITLE should be 'Introduction'"
+
+⚠️ Vague terms like "segments" are ambiguous - specify TITLES, LENGTH, DESCRIPTIONS, etc.`}
                       value={customInstructions}
                       onChange={(e) => setCustomInstructions(e.target.value)}
-                      className="min-h-[100px] text-sm"
+                      className="min-h-[120px] text-sm font-mono"
                     />
                     <p className="text-xs text-muted-foreground">
-                      These instructions will be added to the AI prompt when you regenerate segments.
+                      💡 <strong>Tip:</strong> Be explicit about what to modify (titles, length, descriptions). Generic instructions like "improve segments" won't work well.
                     </p>
                   </div>
                 </CardContent>

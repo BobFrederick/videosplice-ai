@@ -4,6 +4,9 @@ import { cn } from '@/lib/utils'
 import { Slider } from '@/components/ui/slider'
 import { Button } from '@/components/ui/button'
 
+// API configuration
+const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8080'
+
 interface VideoPlayerProps {
   src?: string
   currentTime?: number
@@ -45,7 +48,7 @@ export function VideoPlayer({
     }
 
     // Construct full URL for debugging
-    const fullUrl = src.startsWith('http') ? src : `http://localhost:8080${src}`
+    const fullUrl = src.startsWith('http') ? src : `${API_BASE_URL}${src}`
     console.log('🎥 VideoPlayer: Loading video from:', src)
     console.log('🎥 VideoPlayer: Full URL would be:', fullUrl)
     setIsPlaying(false)
