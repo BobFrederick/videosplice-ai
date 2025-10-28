@@ -38,42 +38,48 @@ export class LLMService {
   }
 
   private async callOllama(prompt: string): Promise<LLMResponse> {
-    const endpoint = this.settings.localEndpoint || 'http://localhost:11434'
-    const model = this.settings.model || 'llama3'
+    // Use backend proxy instead of calling Ollama directly
+    // This allows the frontend to work when Ollama is only accessible on the server
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+    const baseUrl = apiUrl.replace('/api', '')
+    
+    const model = this.settings.model || 'qwen2.5:7b'
 
-    const response = await fetch(`${endpoint}/api/generate`, {
+    console.log('🧠 Calling LLM via backend proxy:', `${baseUrl}/api/llm/generate`)
+
+    const response = await fetch(`${baseUrl}/api/llm/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: model,
         prompt: prompt,
-        stream: false,
-        options: {
+        model: model,
+        provider: 'local',
+        settings: {
           temperature: 0.3,
           top_p: 0.9,
           num_predict: 2048,
-          num_ctx: 8192,  // Increase context window to 8k tokens
+          num_ctx: 8192,
         }
       }),
     })
 
     if (!response.ok) {
       const errorText = await response.text()
-      throw new Error(`Ollama API error: ${response.status} - ${errorText}`)
+      throw new Error(`LLM API error: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
     
-    if (!data.response) {
-      throw new Error('No response from Ollama')
+    if (!data.text) {
+      throw new Error('No response from LLM')
     }
 
     return {
-      text: data.response,
-      model: model,
-      provider: 'ollama'
+      text: data.text,
+      model: data.model || model,
+      provider: data.provider || 'ollama'
     }
   }
 

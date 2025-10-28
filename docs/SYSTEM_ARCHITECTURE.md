@@ -105,6 +105,7 @@ graph TB
 - `GET /api/segment/:jobId/:segmentId` - Download trimmed segment
 - `GET /api/segment/:jobId/:segmentId/vtt` - Download VTT subtitles
 - `GET /api/stats` - Queue statistics
+- `POST /api/llm/generate` - LLM proxy endpoint for frontend (calls local Ollama)
 
 ### WebSocket Server
 
@@ -186,6 +187,13 @@ graph TB
 **Input:** Transcript + whisper segments + duration + custom prompt  
 **Output:** Array of segments with titles, descriptions, and timestamps
 
+**Access Pattern:**
+- **Worker (Initial Processing)**: Direct local access to Ollama
+- **Frontend (Re-Generate Segments)**: Via backend proxy at `/api/llm/generate`
+  - Frontend cannot directly access `localhost:11434` when running on remote machines
+  - Backend proxies LLM requests to local Ollama instance
+  - Enables "Re-Generate Segments" feature to work over network
+
 ### FFmpeg
 
 **Usage:** Command-line spawned process
@@ -260,6 +268,34 @@ graph TB
 4. Video streams back to browser with progress tracking
 5. VTT subtitle file generated from whisper segments
 6. Both files download sequentially
+
+### 4. Re-Generate Segments (LLM Proxy)
+
+```
+┌─────────┐     ┌─────────┐     ┌────────┐
+│ Browser │────>│ Express │────>│ Ollama │
+│         │     │  /api/  │     │  LLM   │
+│         │     │   llm/  │     │        │
+└─────────┘     │generate │     └────────┘
+     ^          └─────────┘          │
+     │               │               │
+     └───────────────┴───────────────┘
+          New Segments JSON
+```
+
+**Why Proxy?**
+- Frontend runs on user's browser (potentially remote machine)
+- Ollama only listens on `localhost:11434` on the server
+- Browser cannot access server's localhost directly
+- Backend proxy bridges the gap
+
+**Flow:**
+1. User clicks "Re-Generate Segments" in Project View
+2. Frontend sends transcript + settings to `/api/llm/generate`
+3. Backend forwards request to local Ollama instance
+4. Ollama analyzes content and returns segment suggestions
+5. Backend passes response back to frontend
+6. Frontend updates project with new segments
 
 ## File Structure
 

@@ -9,6 +9,10 @@ import type { Project } from '@/lib/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { useTheme } from '@/hooks/useTheme'
 
+// API configuration
+const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8080'
+const API_URL = `${API_BASE_URL}/api`
+
 function App() {
   // Initialize theme
   useTheme()
@@ -47,7 +51,7 @@ function App() {
           name: job.data?.fileName || job.returnvalue?.fileName || existingProject.name,
           segments: job.returnvalue.segments || [],
           transcript: job.returnvalue.transcript || existingProject.transcript,
-          videoUrl: `http://localhost:8080/api/video/${job.id}`,
+          videoUrl: `${API_URL}/video/${job.id}`,
           duration: job.returnvalue.duration || job.data?.duration || existingProject.duration
         }
         
@@ -85,7 +89,7 @@ function App() {
         if (!jobResults && job.id) {
           console.log('Fetching job results from server for:', job.id)
           try {
-            const response = await fetch(`http://localhost:8080/api/jobs/${job.id}`)
+            const response = await fetch(`${API_URL}/jobs/${job.id}`)
             if (response.ok) {
               const jobData = await response.json()
               console.log('Fetched job data:', jobData)
@@ -102,7 +106,7 @@ function App() {
           jobId: job.id,
           segments: jobResults?.segments || [],
           transcript: jobResults?.transcript || 'Processing results not available',
-          videoUrl: `http://localhost:8080/api/video/${job.id}`,
+          videoUrl: `${API_URL}/video/${job.id}`,
           duration: jobResults?.duration || job.data?.duration || 0,
           exportedSegments: jobResults?.exportedSegments || []
         }

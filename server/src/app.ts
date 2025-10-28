@@ -380,6 +380,93 @@ app.post('/api/upload', upload.single('video'), async (req, res) => {
   }
 })
 
+// LLM proxy endpoint - allows frontend to call Ollama through backend
+app.post('/api/llm/generate', async (req, res) => {
+  try {
+    const { prompt, model, provider, settings } = req.body
+
+    if (!prompt) {
+      return res.status(400).json({ error: 'Prompt is required' })
+    }
+
+    // Default to Ollama if provider not specified
+    const llmProvider = provider || 'local'
+    const llmModel = model || 'qwen2.5:7b'
+
+    if (llmProvider === 'local') {
+      // Call Ollama on the server
+      const ollamaUrl = process.env.OLLAMA_API_URL || 'http://localhost:11434'
+      
+      console.log(`🧠 LLM proxy: Calling Ollama at ${ollamaUrl} with model ${llmModel}`)
+      console.log(`📝 Prompt length: ${prompt.length} characters`)
+      
+      // Log if there are custom instructions (look for the marker)
+      if (prompt.includes('USER\'S CUSTOM INSTRUCTIONS')) {
+        const instructionsMatch = prompt.match(/USER'S CUSTOM INSTRUCTIONS.*?\n(.*?)\n\n/s)
+        if (instructionsMatch) {
+          console.log(`🎯 Custom instructions detected: "${instructionsMatch[1].substring(0, 100)}..."`)
+        }
+      } else {
+        console.log(`ℹ️  No custom instructions in prompt`)
+      }
+      
+      const ollamaResponse = await fetch(`${ollamaUrl}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: llmModel,
+          prompt: prompt,
+          stream: false,
+          options: {
+            temperature: settings?.temperature || 0.3,
+            top_p: settings?.top_p || 0.9,
+            num_predict: settings?.num_predict || 2048,
+            num_ctx: settings?.num_ctx || 8192,
+          }
+        }),
+      })
+
+      if (!ollamaResponse.ok) {
+        const errorText = await ollamaResponse.text()
+        console.error(`❌ Ollama error: ${ollamaResponse.status} - ${errorText}`)
+        return res.status(ollamaResponse.status).json({
+          error: 'Ollama API error',
+          details: errorText
+        })
+      }
+
+      const data = await ollamaResponse.json() as { response?: string }
+      
+      if (!data.response) {
+        return res.status(500).json({ error: 'No response from Ollama' })
+      }
+
+      console.log(`✅ LLM response generated (${data.response.length} chars)`)
+      
+      return res.json({
+        text: data.response,
+        model: llmModel,
+        provider: 'ollama'
+      })
+    } else {
+      // For OpenAI/Anthropic, the frontend can call directly (they're public APIs)
+      return res.status(400).json({
+        error: 'Unsupported provider for backend proxy',
+        message: 'Only local Ollama provider is supported through the backend. Use direct API calls for OpenAI/Anthropic.'
+      })
+    }
+
+  } catch (error) {
+    console.error('❌ LLM proxy error:', error)
+    res.status(500).json({
+      error: 'Failed to generate LLM response',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    })
+  }
+})
+
 // Get job status
 app.get('/api/jobs/:jobId', async (req, res) => {
   try {

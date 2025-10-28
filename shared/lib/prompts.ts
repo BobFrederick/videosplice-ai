@@ -39,21 +39,30 @@ export function createDefaultPrompt(
 **Full Transcript:**
 ${transcript}
 
-${customInstructions ? `**🎯 USER'S CUSTOM INSTRUCTIONS - HIGHEST PRIORITY - MUST FOLLOW:**
+${customInstructions ? `
+═══════════════════════════════════════════════════════════════════
+🎯 USER'S CUSTOM INSTRUCTIONS - ABSOLUTE HIGHEST PRIORITY 🎯
+═══════════════════════════════════════════════════════════════════
+YOU MUST FOLLOW THESE INSTRUCTIONS EXACTLY. THEY OVERRIDE ALL OTHER REQUIREMENTS.
+
 ${customInstructions}
 
-` : ''}**Task:**
+═══════════════════════════════════════════════════════════════════
+` : ''}
+**Task:**
 Analyze the content and create 4-8 logical segments that cover the entire video. Each segment should represent a distinct topic, concept, or section of the video.
-
+${customInstructions ? `\n⚠️ REMEMBER: Follow the custom instructions above for ALL segments!\n` : ''}
 **CRITICAL REQUIREMENTS:**
-1. Use timestamps in seconds (decimal values like 12.5 are allowed)
-2. Create descriptive, specific titles for each segment
-3. Write 1-2 sentence descriptions that summarize what happens in each segment
-4. Ensure segments are CONTIGUOUS - no gaps between segments, each segment should end where the next begins
-5. No segments should be over 10 minutes in length
-6. Cover the full video duration from start (0s) to end (${Math.ceil(duration)}s)
-${!customInstructions ? `7. The first segment should NOT be titled anything that implies conclusion or ending since it is the opening segment` : ''}
+1. ${customInstructions ? 'FIRST AND FOREMOST: Apply the custom instructions to every single segment' : 'Use timestamps in seconds (decimal values like 12.5 are allowed)'}
+2. ${customInstructions ? 'Use timestamps in seconds (decimal values like 12.5 are allowed)' : 'Create descriptive, specific titles for each segment'}
+3. ${customInstructions ? 'Create descriptive, specific titles for each segment' : 'Write 1-2 sentence descriptions that summarize what happens in each segment'}
+4. ${customInstructions ? 'Write 1-2 sentence descriptions that summarize what happens in each segment' : 'Ensure segments are CONTIGUOUS - no gaps between segments, each segment should end where the next begins'}
+5. ${customInstructions ? 'Ensure segments are CONTIGUOUS - no gaps between segments, each segment should end where the next begins' : 'No segments should be over 10 minutes in length'}
+6. ${customInstructions ? 'No segments should be over 10 minutes in length' : 'Cover the full video duration from start (0s) to end (' + Math.ceil(duration) + 's)'}
+7. Cover the full video duration from start (0s) to end (${Math.ceil(duration)}s)
+${!customInstructions ? `8. The first segment should NOT be titled anything that implies conclusion or ending since it is the opening segment` : ''}
 **Things to avoid:**
+- ${customInstructions ? 'IGNORING THE CUSTOM INSTRUCTIONS (most important!)' : 'Creating segments that overlap in time'}
 - Creating segments that overlap in time
 - Leaving gaps between segments
 - Using vague or generic titles
@@ -100,22 +109,33 @@ ${transcript}
 **Whisper Timing Segments:**
 ${whisperSegments.map((seg, i) => `[${i}] ${seg.start.toFixed(1)}s - ${seg.end.toFixed(1)}s: "${seg.text}"`).join('\n')}
 
-${customInstructions ? `**🎯 USER'S CUSTOM INSTRUCTIONS - HIGHEST PRIORITY - MUST FOLLOW:**
+${customInstructions ? `
+═══════════════════════════════════════════════════════════════════
+🎯 USER'S CUSTOM INSTRUCTIONS - ABSOLUTE HIGHEST PRIORITY 🎯
+═══════════════════════════════════════════════════════════════════
+YOU MUST FOLLOW THESE INSTRUCTIONS EXACTLY. THEY OVERRIDE ALL OTHER REQUIREMENTS.
+APPLY THESE INSTRUCTIONS TO EVERY SINGLE SEGMENT WITHOUT EXCEPTION.
+
 ${customInstructions}
 
-` : ''}**Task:**
+REMINDER: The above custom instructions MUST be applied to ALL segments.
+═══════════════════════════════════════════════════════════════════
+` : ''}
+**Task:**
 Analyze the content and create 4-8 logical segments that group related Whisper segments together. Each segment should represent a distinct topic, concept, or section of the video.
-
+${customInstructions ? `\n⚠️ CRITICAL: Follow the custom instructions above for EVERY segment without exception!\n` : ''}
 **CRITICAL REQUIREMENTS:**
-1. Use the Whisper segment timing boundaries (don't create arbitrary timestamps)
-2. Group consecutive Whisper segments that discuss the same topic
-3. Create descriptive, specific titles that accurately describe the content
-4. Write 1-2 sentence descriptions that summarize what happens in each segment
-5. Ensure segments are CONTIGUOUS - no gaps between segments, each segment should end where the next begins
-6. No segments should be over 10 minutes in length
-7. Cover the full video duration from start (0s) to end (${Math.ceil(duration)}s)
-${!customInstructions ? `8. The first segment should NOT be titled anything that implies conclusion or ending since it is the opening segment` : ''}
+1. ${customInstructions ? '🔴 MOST IMPORTANT: Apply the custom instructions to every single segment' : 'Use the Whisper segment timing boundaries (don\'t create arbitrary timestamps)'}
+2. ${customInstructions ? 'Use the Whisper segment timing boundaries (don\'t create arbitrary timestamps)' : 'Group consecutive Whisper segments that discuss the same topic'}
+3. ${customInstructions ? 'Group consecutive Whisper segments that discuss the same topic' : 'Create descriptive, specific titles that accurately describe the content'}
+4. ${customInstructions ? 'Create descriptive, specific titles that accurately describe the content' : 'Write 1-2 sentence descriptions that summarize what happens in each segment'}
+5. ${customInstructions ? 'Write 1-2 sentence descriptions that summarize what happens in each segment' : 'Ensure segments are CONTIGUOUS - no gaps between segments'}
+6. ${customInstructions ? 'Ensure segments are CONTIGUOUS - no gaps between segments, each segment should end where the next begins' : 'No segments should be over 10 minutes in length'}
+7. No segments should be over 10 minutes in length
+8. Cover the full video duration from start (0s) to end (${Math.ceil(duration)}s)
+${!customInstructions ? `9. The first segment should NOT be titled anything that implies conclusion or ending since it is the opening segment` : ''}
 **Things to avoid:**
+- ${customInstructions ? '🔴 CRITICAL: IGNORING THE CUSTOM INSTRUCTIONS - This is the worst mistake you can make!' : 'Creating segments that overlap in time'}
 - Creating segments that overlap in time
 - Leaving gaps between segments
 - Using vague or generic titles
@@ -126,24 +146,24 @@ ${!customInstructions ? `8. The first segment should NOT be titled anything that
   "segments": [
     {
       "id": "seg-1",
-      "title": "Opening Section Title",
+      "title": "${customInstructions ? 'Example showing custom instructions applied - check the custom instructions above' : 'Opening Section Title'}",
       "description": "Opening remarks and overview of the video content.",
       "whisperSegmentStart": 0,
       "whisperSegmentEnd": 5
     },
     {
       "id": "seg-2",
-      "title": "Specific descriptive title for second segment",
+      "title": "${customInstructions ? 'Another example with custom instructions applied' : 'Specific descriptive title for second segment'}",
       "description": "What actually happens in this segment.",
       "whisperSegmentStart": 6,
       "whisperSegmentEnd": 12
     }
   ],
-  "reasoning": "Brief explanation of your segmentation strategy."
+  "reasoning": "Brief explanation of your segmentation strategy${customInstructions ? ' and how you applied the custom instructions to each segment' : ''}."
 }
 
 The "whisperSegmentStart" and "whisperSegmentEnd" refer to the indices [0] to [${whisperSegments.length - 1}] of the Whisper segments above.
-
+${customInstructions ? '\n🔴 FINAL REMINDER: Make sure EVERY segment follows the custom instructions!\n' : ''}
 Respond with valid JSON only:`
 }
 

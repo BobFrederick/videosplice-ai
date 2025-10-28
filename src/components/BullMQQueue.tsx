@@ -12,6 +12,10 @@ import queueAPI from '@/services/queueAPI'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { toast } from 'sonner'
 
+// API configuration
+const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8080'
+const API_URL = `${API_BASE_URL}/api`
+
 // Video Thumbnail Component
 function VideoThumbnail({ file }: { file: File }) {
   const [thumbnail, setThumbnail] = useState<string | null>(null)
@@ -100,7 +104,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
   const checkConnection = async () => {
     console.log('🔗 Testing actual server connection...')
     try {
-      const response = await fetch('http://localhost:8080/api/stats')
+      const response = await fetch(`${API_URL}/stats`)
       if (response.ok) {
         console.log('✅ Server connection confirmed')
         setIsConnected(true)
@@ -148,7 +152,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
       
       // Also try loading completed jobs specifically
       try {
-        const completedJobs = await fetch('http://localhost:8080/api/jobs?status=completed').then(r => r.json())
+        const completedJobs = await fetch(`${API_URL}/jobs?status=completed`).then(r => r.json())
         console.log('📋 Completed jobs check:', completedJobs)
       } catch (e) {
         console.log('📋 Failed to check completed jobs:', e)
@@ -209,7 +213,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
 
   const cacheCompletedJob = async (jobId: string, jobData: any) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/jobs/${jobId}/cache`, {
+      const response = await fetch(`${API_URL}/jobs/${jobId}/cache`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -964,7 +968,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
                                   for (const endpoint of endpoints) {
                                     try {
                                       console.log(`🔧 Trying endpoint: ${endpoint}`)
-                                      const response = await fetch(`http://localhost:8080${endpoint}`)
+                                      const response = await fetch(`${API_BASE_URL}${endpoint}`)
                                       if (response.ok) {
                                         const data = await response.json()
                                         console.log(`🔧 Data from ${endpoint}:`, JSON.stringify(data, null, 2))
@@ -1002,7 +1006,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
                                     
                                     for (const fileEndpoint of resultFiles) {
                                       try {
-                                        const fileResponse = await fetch(`http://localhost:8080${fileEndpoint}`)
+                                        const fileResponse = await fetch(`${API_BASE_URL}${fileEndpoint}`)
                                         if (fileResponse.ok) {
                                           const fileData = await fileResponse.json()
                                           console.log(`🎉 Found result file ${fileEndpoint}:`, fileData)
