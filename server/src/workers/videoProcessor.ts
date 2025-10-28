@@ -5,6 +5,7 @@ import { Worker, Job } from 'bullmq'
 import Redis from 'ioredis'
 import fs from 'fs'
 import path from 'path'
+import axios from 'axios'
 import { VideoJob, ProcessingOptions } from '../types'
 import wsService from '../services/websocketService'
 import { generateIntelligentSegments } from '@shared/llmSegmentation'
@@ -291,27 +292,22 @@ class VideoProcessor {
     const whisperUrl = process.env.WHISPER_API_URL || 'http://localhost:3001'
     console.log(`🎙️ Calling Whisper API at: ${whisperUrl}/api/transcribe`)
     
-    // Use AbortController for timeout - large videos can take 10+ minutes to transcribe
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 30 * 60 * 1000) // 30 minutes
-    
     try {
-      const response = await fetch(`${whisperUrl}/api/transcribe`, {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-        // Disable default timeouts for large files
+      // Use axios with explicit timeout for large file processing (30 minutes)
+      const response = await axios.post(`${whisperUrl}/api/transcribe`, formData, {
+        timeout: 30 * 60 * 1000, // 30 minutes for both request and response
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
         headers: {
           'Connection': 'keep-alive'
         }
       })
-      clearTimeout(timeout)
     
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(`Whisper transcription failed: ${response.statusText}`)
       }
       
-      const result = await response.json() as { 
+      const result = response.data as { 
         text: string
         segments: any[]
         duration: number
@@ -323,8 +319,7 @@ class VideoProcessor {
         duration: result.duration || (result.segments && result.segments.length > 0 ? Math.max(...result.segments.map((s: any) => s.end || 0)) : 0)
       }
     } catch (error: any) {
-      clearTimeout(timeout)
-      if (error.name === 'AbortError') {
+      if (error.code === 'ECONNABORTED') {
         throw new Error('Whisper transcription timeout (30 minutes)')
       }
       throw error
