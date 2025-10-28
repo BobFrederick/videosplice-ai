@@ -249,9 +249,32 @@ class VideoProcessor {
       }
     }
 
+    // Resolve to absolute path - handle both relative and absolute paths
+    // If path is relative (like "uploads/xxx.mp4"), resolve from project root
+    const absolutePath = path.isAbsolute(filePath) 
+      ? filePath 
+      : path.resolve(process.cwd(), '..', filePath) // Go up one level from server/ to project root
+    
+    console.log(`🔍 File path resolution:`)
+    console.log(`   - Original: ${filePath}`)
+    console.log(`   - Absolute: ${absolutePath}`)
+    console.log(`   - CWD: ${process.cwd()}`)
+    
     // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`Video file not found: ${filePath}`)
+    if (!fs.existsSync(absolutePath)) {
+      // Try alternative path (in case we're already at project root)
+      const alternativePath = path.resolve(process.cwd(), filePath)
+      console.log(`   - Alternative: ${alternativePath}`)
+      
+      if (fs.existsSync(alternativePath)) {
+        console.log(`✅ Found file at alternative path: ${alternativePath}`)
+        filePath = alternativePath
+      } else {
+        throw new Error(`Video file not found. Tried:\n  - ${absolutePath}\n  - ${alternativePath}`)
+      }
+    } else {
+      console.log(`✅ Found file at: ${absolutePath}`)
+      filePath = absolutePath
     }
 
     // Create form data for file upload using Node.js native FormData and Blob
@@ -264,26 +287,47 @@ class VideoProcessor {
     formData.append('model', 'base')
     formData.append('outputFormat', 'json')
 
-    // Call Whisper service with correct endpoint
-    const response = await fetch('http://localhost:3001/api/transcribe', {
-      method: 'POST',
-      body: formData
-    })
-
-    if (!response.ok) {
-      throw new Error(`Whisper transcription failed: ${response.statusText}`)
-    }
-
-    const result = await response.json() as { 
-      text: string
-      segments: any[]
-      duration: number
-    }
+    // Call Whisper service with correct endpoint (use environment variable or default to 3001)
+    const whisperUrl = process.env.WHISPER_API_URL || 'http://localhost:3001'
+    console.log(`🎙️ Calling Whisper API at: ${whisperUrl}/api/transcribe`)
     
-    return {
-      transcript: result.text || result.segments?.map((s: any) => s.text).join(' ').trim() || '',
-      segments: result.segments || [],
-      duration: result.duration || (result.segments && result.segments.length > 0 ? Math.max(...result.segments.map((s: any) => s.end || 0)) : 0)
+    // Use AbortController for timeout - large videos can take 10+ minutes to transcribe
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 30 * 60 * 1000) // 30 minutes
+    
+    try {
+      const response = await fetch(`${whisperUrl}/api/transcribe`, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+        // Disable default timeouts for large files
+        headers: {
+          'Connection': 'keep-alive'
+        }
+      })
+      clearTimeout(timeout)
+    
+      if (!response.ok) {
+        throw new Error(`Whisper transcription failed: ${response.statusText}`)
+      }
+      
+      const result = await response.json() as { 
+        text: string
+        segments: any[]
+        duration: number
+      }
+      
+      return {
+        transcript: result.text || result.segments?.map((s: any) => s.text).join(' ').trim() || '',
+        segments: result.segments || [],
+        duration: result.duration || (result.segments && result.segments.length > 0 ? Math.max(...result.segments.map((s: any) => s.end || 0)) : 0)
+      }
+    } catch (error: any) {
+      clearTimeout(timeout)
+      if (error.name === 'AbortError') {
+        throw new Error('Whisper transcription timeout (30 minutes)')
+      }
+      throw error
     }
   }
 
