@@ -432,10 +432,21 @@ export function Timeline({
                 }}
                 title={segment.title}
                 onClick={(e) => {
-                  // Only trigger segment click if no modifier keys are pressed
-                  // Shift+Click adds splits, Ctrl+Click removes segments
-                  if (onSegmentClick && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-                    e.stopPropagation() // Prevent timeline seek click
+                  // Don't trigger segment click on modifier keys
+                  if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                    return
+                  }
+                  
+                  e.stopPropagation() // Prevent timeline seek click
+                  
+                  // Only highlight the segment, don't seek the video
+                  // The timeline click handler below will handle seeking to the exact click position
+                  if (onSegmentClick) {
+                    // Get the exact click position within the timeline
+                    const time = getTimeFromPosition(e.clientX)
+                    // Seek to exact click position, not segment start
+                    onSeek(time)
+                    // Then highlight the segment for the editor
                     onSegmentClick(segment)
                   }
                 }}

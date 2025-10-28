@@ -91,10 +91,17 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
     onProjectUpdate({ ...project, transcript })
   }
 
-  // Handles segment selection from both SegmentEditor and Timeline clicks
-  // Updates selected state and seeks video to segment start time
-  // Also triggers SegmentEditor auto-scroll via selectedSegmentId change
+  // Handles segment selection from Timeline clicks
+  // Timeline now handles seeking to exact click position
+  // This just updates the selected segment for highlighting in SegmentEditor
   const handleSegmentSelect = (segment: Segment) => {
+    setSelectedSegmentId(segment.id)
+    // Don't seek here - Timeline handles seeking to exact click position
+  }
+
+  // Handles segment selection from SegmentEditor card clicks
+  // Seeks video to segment start time and highlights the segment
+  const handleSegmentCardClick = (segment: Segment) => {
     setSelectedSegmentId(segment.id)
     setCurrentTime(segment.startTime)
   }
@@ -411,7 +418,7 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
             <SegmentEditor
               segments={project.segments}
               onSegmentChange={handleSegmentChange}
-              onSegmentSelect={handleSegmentSelect}
+              onSegmentSelect={handleSegmentCardClick}
               selectedSegmentId={selectedSegmentId}
               duration={duration}
             />

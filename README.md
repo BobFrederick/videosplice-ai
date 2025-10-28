@@ -140,19 +140,10 @@ splice/
 └── whisper-server.mjs # Whisper API server
 ```
 
-## 🤝 Contributing
+## 📁 Documentation
 
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for:
-
-- Development setup
-- Coding standards
-- Pull request process
-- Areas we need help
-
-## � Documentation
-
-- [Changelog](./CHANGELOG.md) - Version history and release notes
-- [System Architecture](./docs/SYSTEM_ARCHITECTURE.md) - Technical overview
+- [Deployment Guide](./docs/DEPLOYMENT.md) - Production deployment and PM2 setup
+- [System Architecture](./docs/ARCHITECTURE.md) - Technical overview and data flow
 - [Security](./docs/SECURITY.md) - Security considerations
 
 ## 🐛 Troubleshooting
@@ -181,13 +172,7 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 - [Whisper.cpp](https://github.com/ggerganov/whisper.cpp) - Fast local transcription
 - [Ollama](https://ollama.ai/) - Local LLM inference
 - [shadcn/ui](https://ui.shadcn.com/) - Beautiful UI components
-- All our [contributors](./CONTRIBUTING.md)
-
-## 💬 Support
-
-- **Issues**: [GitHub Issues](https://github.com/BobFrederick/videosplice-ai/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/BobFrederick/videosplice-ai/discussions)
 
 ---
 
-Made with ❤️ by the Splice community
+Made with ❤️ for internal use
