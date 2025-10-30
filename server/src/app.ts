@@ -467,6 +467,69 @@ app.post('/api/llm/generate', async (req, res) => {
   }
 })
 
+// Ollama tags endpoint - proxy to get available models
+app.get('/api/ollama/tags', async (req, res) => {
+  try {
+    const ollamaUrl = process.env.OLLAMA_API_URL || 'http://localhost:11434'
+    
+    console.log(`🏷️  Fetching Ollama models from ${ollamaUrl}/api/tags`)
+    
+    const ollamaResponse = await fetch(`${ollamaUrl}/api/tags`)
+    
+    if (!ollamaResponse.ok) {
+      const errorText = await ollamaResponse.text()
+      console.error(`❌ Ollama tags error: ${ollamaResponse.status} - ${errorText}`)
+      return res.status(ollamaResponse.status).json({
+        error: 'Ollama API error',
+        details: errorText
+      })
+    }
+    
+    const data = await ollamaResponse.json() as { models?: any[] }
+    console.log(`✅ Found ${data.models?.length || 0} Ollama models`)
+    
+    return res.json(data)
+  } catch (error) {
+    console.error('❌ Ollama tags proxy error:', error)
+    res.status(500).json({
+      error: 'Failed to fetch Ollama models',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    })
+  }
+})
+
+// Ollama test connection endpoint
+app.get('/api/ollama/test', async (req, res) => {
+  try {
+    const ollamaUrl = process.env.OLLAMA_API_URL || 'http://localhost:11434'
+    
+    console.log(`🔍 Testing Ollama connection at ${ollamaUrl}/api/tags`)
+    
+    const ollamaResponse = await fetch(`${ollamaUrl}/api/tags`)
+    
+    if (!ollamaResponse.ok) {
+      return res.status(ollamaResponse.status).json({
+        success: false,
+        error: 'Ollama not responding'
+      })
+    }
+    
+    const data = await ollamaResponse.json() as { models?: any[] }
+    
+    return res.json({
+      success: true,
+      models: data.models?.length || 0,
+      message: 'Ollama is running'
+    })
+  } catch (error) {
+    console.error('❌ Ollama test error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    })
+  }
+})
+
 // Get job status
 app.get('/api/jobs/:jobId', async (req, res) => {
   try {
