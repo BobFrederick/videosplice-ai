@@ -79,7 +79,10 @@ export function SettingsPage() {
 
     setIsLoadingModels(true)
     try {
-      const response = await fetch(`${settings.localEndpoint}/api/tags`)
+      // Use backend proxy to avoid CORS issues
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
+      const response = await fetch(`${apiUrl}/ollama/tags`)
+      
       if (response.ok) {
         const data = await response.json()
         const models = data.models?.map((m: any) => m.name) || []
@@ -103,12 +106,21 @@ export function SettingsPage() {
 
     try {
       if (settings.provider === 'local' && settings.localEndpoint) {
-        // Test Ollama connection
-        const response = await fetch(`${settings.localEndpoint}/api/tags`)
+        // Test Ollama connection via backend proxy
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
+        const response = await fetch(`${apiUrl}/ollama/test`)
+        
         if (response.ok) {
-          setTestStatus('success')
-          setTestMessage('Connection successful! Ollama is running.')
-          toast.success('Ollama connection test passed!')
+          const data = await response.json()
+          if (data.success) {
+            setTestStatus('success')
+            setTestMessage(`Connection successful! Found ${data.models} models.`)
+            toast.success('Ollama connection test passed!')
+          } else {
+            setTestStatus('error')
+            setTestMessage(data.error || 'Failed to connect to Ollama endpoint.')
+            toast.error('Ollama connection failed')
+          }
         } else {
           setTestStatus('error')
           setTestMessage('Failed to connect to Ollama endpoint.')
