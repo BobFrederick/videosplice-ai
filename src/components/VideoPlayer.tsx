@@ -30,12 +30,27 @@ export function VideoPlayer({
   const [isMuted, setIsMuted] = useState(false)
   const [playbackRate, setPlaybackRate] = useState(1)
   const isSeekingRef = useRef(false)
+  const lastSeekTimeRef = useRef(0)
+  const seekTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (videoRef.current && currentTime !== undefined && !isSeekingRef.current) {
       const timeDiff = Math.abs(videoRef.current.currentTime - currentTime)
       if (timeDiff > 0.5) {
+        isSeekingRef.current = true
+        lastSeekTimeRef.current = Date.now()
         videoRef.current.currentTime = currentTime
+        
+        // Clear any existing timeout
+        if (seekTimeoutRef.current) {
+          clearTimeout(seekTimeoutRef.current)
+        }
+        
+        // Allow time updates again after 300ms (enough time for seek to complete)
+        seekTimeoutRef.current = setTimeout(() => {
+          isSeekingRef.current = false
+          seekTimeoutRef.current = null
+        }, 300)
       }
     }
   }, [currentTime])
@@ -62,9 +77,12 @@ export function VideoPlayer({
     }
 
     const handleTimeUpdate = () => {
-      isSeekingRef.current = false
       setProgress(video.currentTime)
-      onTimeUpdate?.(video.currentTime)
+      // Only call onTimeUpdate if we're not currently seeking
+      // This prevents feedback loops where seek -> timeupdate -> parent updates currentTime -> seek again
+      if (!isSeekingRef.current) {
+        onTimeUpdate?.(video.currentTime)
+      }
     }
 
     const handleEnded = () => {
@@ -120,6 +138,11 @@ export function VideoPlayer({
       video.removeEventListener('pause', handlePause)
       video.removeEventListener('canplay', handleCanPlay)
       video.removeEventListener('error', handleError)
+      
+      // Cleanup seek timeout
+      if (seekTimeoutRef.current) {
+        clearTimeout(seekTimeoutRef.current)
+      }
     }
   }, [src, onTimeUpdate, onDurationChange])
 
@@ -173,9 +196,21 @@ export function VideoPlayer({
   const handleProgressChange = (value: number[]) => {
     if (!videoRef.current) return
     isSeekingRef.current = true
+    lastSeekTimeRef.current = Date.now()
     const newTime = value[0]
     videoRef.current.currentTime = newTime
     setProgress(newTime)
+    
+    // Clear any existing timeout
+    if (seekTimeoutRef.current) {
+      clearTimeout(seekTimeoutRef.current)
+    }
+    
+    // Allow time updates again after 300ms
+    seekTimeoutRef.current = setTimeout(() => {
+      isSeekingRef.current = false
+      seekTimeoutRef.current = null
+    }, 300)
   }
 
   const handlePlaybackRateChange = (rate: number) => {
