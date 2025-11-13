@@ -2,13 +2,14 @@
 
 ## Overview
 
-Splice is a local-first video segmentation system that uses AI to automatically analyze and chapter videos. It consists of a React frontend, Express backend, BullMQ job queue, and integration with local AI models.
+Splice is a local-first video segmentation system that uses AI to automatically analyze and chapter videos. It consists of a React frontend, Express backend, BullMQ job queue, and integration with AI models (local or cloud).
 
 **Key Design Principles:**
-- **Local-First**: All processing happens on the user's machine
+- **Local-First with Options**: Default to local processing, support cloud LLMs for flexibility
 - **Real-Time Feedback**: WebSocket updates for job progress
 - **Asynchronous Processing**: BullMQ handles video processing jobs
 - **Modular Design**: Separate frontend, backend, and workers
+- **Multi-Provider Support**: Local (Ollama), OpenAI, or Anthropic for segmentation
 
 ---
 
@@ -45,9 +46,13 @@ Splice is a local-first video segmentation system that uses AI to automatically 
 ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌──────────────┐
 │ Whisper │  │ Ollama  │  │ FFmpeg  │  │ File System  │
 │ (:8000) │  │(:11434) │  │         │  │  /uploads    │
-│         │  │         │  │         │  │              │
-│Transcrib│  │Segment  │  │  Trim   │  │Video Storage │
+│         │  │ (Local) │  │         │  │              │
+│Transcrib│  │Segment* │  │  Trim   │  │Video Storage │
 └─────────┘  └─────────┘  └─────────┘  └──────────────┘
+                                              │
+         *Initial processing uses local Ollama│
+          Re-generation can use OpenAI/Anthropic
+          (configured in Settings)
 ```
 
 ---
@@ -136,12 +141,34 @@ Splice is a local-first video segmentation system that uses AI to automatically 
 - Audio transcription
 - Timestamp alignment
 - Language detection
+- Required for initial video processing (unless VTT uploaded)
 
-**Ollama** (Port 11434)
-- Content analysis
-- Chapter detection
-- Title generation
-- Models: qwen2.5:7b, mistral:7b
+**LLM Providers for Segmentation**
+
+Splice supports multiple LLM providers with different use cases:
+
+**Local (Ollama)** - Port 11434 - Default
+- Used for: Initial video processing (required)
+- Used for: Re-generation from project view (optional)
+- Models: qwen2.5:7b, qwen3-30b, mistral:7b, etc.
+- Pros: Free, private, offline-capable
+- Cons: Requires local GPU/CPU, model download
+
+**OpenAI API** - Cloud - Optional
+- Used for: Re-generation from project view only
+- Models: gpt-4o, gpt-4-turbo, gpt-3.5-turbo
+- Pros: No local setup, fast, high quality
+- Cons: Requires API key, costs per token, internet required
+- Configuration: Settings → Provider → OpenAI → Enter API key
+
+**Anthropic API** - Cloud - Optional
+- Used for: Re-generation from project view only
+- Models: claude-3-opus, claude-3-sonnet, claude-3-haiku
+- Pros: No local setup, excellent reasoning
+- Cons: Requires API key, costs per token, internet required
+- Configuration: Settings → Provider → Anthropic → Enter API key
+
+> **Important Limitation:** Initial video upload processing (transcribe → segment pipeline) **always uses local Ollama**. OpenAI and Anthropic can only be used when manually re-generating segments from the project view. This ensures the core workflow remains local-first.
 
 **FFmpeg**
 - Video trimming
@@ -207,13 +234,25 @@ When a user provides a VTT file:
 
 ### Re-Generate Segments (Frontend Only)
 
-1. User clicks "Re-Generate Segments"
-2. Frontend calls `/api/llm/generate` (backend proxy)
-3. Backend forwards request to local Ollama
-4. Frontend receives new segments
-5. User can edit and save
+**Supports all LLM providers (Local/OpenAI/Anthropic):**
 
-**Why proxy?** Remote browsers can't access `localhost:11434` directly.
+1. User clicks "Re-Generate Segments" in project view
+2. Frontend checks Settings for configured LLM provider
+3. **If provider = 'local':**
+   - Frontend calls `/api/llm/generate` (backend proxy)
+   - Backend forwards request to local Ollama
+4. **If provider = 'openai':**
+   - Frontend calls OpenAI API directly
+   - Uses API key from Settings
+5. **If provider = 'anthropic':**
+   - Frontend calls Anthropic API directly
+   - Uses API key from Settings
+6. Frontend receives new segments
+7. User can edit and save
+
+**Why different providers work here:** Re-generation happens in the frontend with existing transcript data. No backend worker involved, so any configured provider can be used.
+
+**Why proxy local Ollama?** Remote browsers can't access `localhost:11434` directly when the server is on a different machine.
 
 ---
 
@@ -236,6 +275,22 @@ When a user provides a VTT file:
 - Started with: `./deploy-production.sh`
 
 **Both can run simultaneously** on the same server, sharing Redis/Ollama/Whisper.
+
+---
+
+## LLM Provider Summary
+
+| Feature | Local (Ollama) | OpenAI | Anthropic |
+|---------|----------------|--------|-----------|
+| **Initial Upload Processing** | ✅ Required | ❌ Not supported | ❌ Not supported |
+| **Re-Generate Segments** | ✅ Supported | ✅ Supported | ✅ Supported |
+| **Setup Required** | Ollama + Models | API Key only | API Key only |
+| **Cost** | Free (local compute) | Pay per token | Pay per token |
+| **Privacy** | 100% local | Cloud API | Cloud API |
+| **Internet Required** | No | Yes | Yes |
+| **Configuration** | Default | Settings → OpenAI | Settings → Anthropic |
+
+**Key Takeaway:** All initial video processing requires local Ollama. Cloud providers (OpenAI/Anthropic) can only be used for manual re-generation of segments from the project view.
 
 ---
 
@@ -288,8 +343,10 @@ When a user provides a VTT file:
 - Multer (file uploads)
 
 **AI/ML:**
-- Whisper.cpp (transcription)
-- Ollama (LLM segmentation)
+- Whisper.cpp (local transcription)
+- Ollama (local LLM - default, required for initial processing)
+- OpenAI API (optional cloud LLM for re-generation)
+- Anthropic API (optional cloud LLM for re-generation)
 - FFmpeg (video processing)
 
 **Deployment:**
