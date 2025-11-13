@@ -62,22 +62,33 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const jobId = req.body.jobId || uuidv4()
-    const ext = path.extname(file.originalname)
-    cb(null, `${jobId}${ext}`)
+    
+    // Handle video and VTT files differently
+    if (file.fieldname === 'vttFile') {
+      cb(null, `${jobId}.vtt`)
+    } else {
+      const ext = path.extname(file.originalname)
+      cb(null, `${jobId}${ext}`)
+    }
   }
 })
 
 const upload = multer({
   storage,
   limits: {
-    fileSize: 500 * 1024 * 1024, // 500MB limit
+    fileSize: 500 * 1024 * 1024, // 500MB limit for video
   },
   fileFilter: (req, file, cb) => {
-    // Accept video files
-    if (file.mimetype.startsWith('video/')) {
+    // Accept video files for 'video' field
+    if (file.fieldname === 'video' && file.mimetype.startsWith('video/')) {
       cb(null, true)
-    } else {
-      cb(new Error('Only video files are allowed'))
+    } 
+    // Accept VTT files for 'vttFile' field
+    else if (file.fieldname === 'vttFile' && file.originalname.endsWith('.vtt')) {
+      cb(null, true)
+    } 
+    else {
+      cb(new Error('Invalid file type'))
     }
   }
 })
@@ -331,43 +342,58 @@ function generateVTTContent(segments: Array<{ start: number; end: number; text: 
 }
 
 // Upload video and create job
-app.post('/api/upload', upload.single('video'), async (req, res) => {
+app.post('/api/upload', upload.fields([
+  { name: 'video', maxCount: 1 },
+  { name: 'vttFile', maxCount: 1 }
+]), async (req, res) => {
   try {
-    if (!req.file) {
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] }
+    
+    if (!files || !files.video || !files.video[0]) {
       return res.status(400).json({ error: 'No video file provided' })
     }
 
-    const jobId = req.body.jobId || path.parse(req.file.filename).name
+    const videoFile = files.video[0]
+    const vttFile = files.vttFile ? files.vttFile[0] : null
+    const jobId = req.body.jobId || path.parse(videoFile.filename).name
+    
     const processingOptions: ProcessingOptions = {
       llmSettings: req.body.llmSettings ? JSON.parse(req.body.llmSettings) : {
         model: 'qwen2.5:7b',
         provider: 'local',
         localEndpoint: 'http://localhost:11434'
       },
-      customTranscript: req.body.customTranscript
+      customTranscript: req.body.customTranscript,
+      vttFilePath: vttFile ? vttFile.path : undefined
     }
 
     const videoJob: VideoJob = {
       id: jobId,
-      fileName: req.file.originalname,
-      fileSize: req.file.size,
-      filePath: req.file.path,
+      fileName: videoFile.originalname,
+      fileSize: videoFile.size,
+      filePath: videoFile.path,
       status: 'queued',
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      hasCustomTranscript: !!req.body.customTranscript
+      hasCustomTranscript: !!req.body.customTranscript,
+      hasVttFile: !!vttFile
     }
 
     // Add job to queue
     const job = await queueService.addVideoJob(videoJob, processingOptions)
 
-    console.log(`📤 File uploaded: ${req.file.originalname} (${req.file.size} bytes)`)
+    console.log(`📤 File uploaded: ${videoFile.originalname} (${videoFile.size} bytes)`)
+    if (vttFile) {
+      console.log(`📄 VTT file uploaded: ${vttFile.originalname} (${vttFile.size} bytes)`)
+    }
     console.log(`🎯 Job created: ${jobId}`)
 
     res.json({
       success: true,
       jobId: jobId,
-      message: 'Video uploaded and queued for processing',
+      message: vttFile 
+        ? 'Video and VTT uploaded - transcription will be skipped' 
+        : 'Video uploaded and queued for processing',
       job: videoJob
     })
 

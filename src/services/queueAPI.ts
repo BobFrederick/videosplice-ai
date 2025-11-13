@@ -8,6 +8,7 @@ interface ProcessingOptions {
     customPrompt?: string
   }
   customTranscript?: string
+  vttFile?: File
 }
 
 class QueueAPIService {
@@ -90,6 +91,7 @@ class QueueAPIService {
     console.log('📤 File:', file.name, file.size, 'bytes')
     console.log('📤 Options:', options)
     console.log('📤 CustomTranscript:', customTranscript ? 'provided' : 'none')
+    console.log('📤 VTT File:', options.vttFile ? options.vttFile.name : 'none')
     
     const formData = new FormData()
     formData.append('video', file)
@@ -97,6 +99,10 @@ class QueueAPIService {
     
     if (customTranscript) {
       formData.append('customTranscript', customTranscript)
+    }
+
+    if (options.vttFile) {
+      formData.append('vttFile', options.vttFile)
     }
 
     console.log('📤 Sending request to:', `${this.baseUrl}/upload`)
