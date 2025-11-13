@@ -86,7 +86,7 @@ Splice is a local-first video segmentation system that uses AI to automatically 
 - LLM proxy endpoint (for remote browsers)
 
 **Key Endpoints:**
-- `POST /api/upload` - Video upload
+- `POST /api/upload` - Video and optional VTT upload
 - `GET /api/jobs` - List all jobs
 - `GET /api/jobs/:id` - Get job details
 - `POST /api/jobs/:id/trim` - Trim video segment
@@ -99,7 +99,7 @@ Splice is a local-first video segmentation system that uses AI to automatically 
 
 **Responsibilities:**
 - Process jobs from BullMQ queue
-- Call Whisper for transcription
+- Call Whisper for transcription (or parse VTT if provided)
 - Call Ollama for AI segmentation
 - Generate intelligent segments
 - Update job status
@@ -155,15 +155,17 @@ Splice is a local-first video segmentation system that uses AI to automatically 
 ### Upload → Process → Complete
 
 1. **User uploads video**
-   - Frontend POSTs to `/api/upload`
-   - Backend saves file to `/server/uploads`
-   - Backend creates BullMQ job
+   - Frontend shows upload dialog
+   - User optionally uploads VTT transcription file
+   - Frontend POSTs to `/api/upload` (video + optional VTT)
+   - Backend saves files to `/server/uploads`
+   - Backend creates BullMQ job with VTT path (if provided)
    - Returns job ID to frontend
 
 2. **Worker processes job**
    - Worker pulls job from Redis queue
-   - Extracts audio with FFmpeg
-   - Calls Whisper API for transcription
+   - **If VTT provided**: Parses VTT file for transcript and segments
+   - **If no VTT**: Extracts audio with FFmpeg → Calls Whisper API for transcription
    - Calls Ollama for intelligent segmentation
    - Saves results to job data
 
@@ -177,6 +179,31 @@ Splice is a local-first video segmentation system that uses AI to automatically 
    - Backend uses FFmpeg to trim segment
    - Generates VTT subtitle file
    - Returns download links
+
+### VTT Upload Flow (Fast Path)
+
+When a user provides a VTT file:
+
+1. **Upload Phase**
+   - User selects video → Modal appears
+   - User uploads `.vtt` file
+   - Both files sent to backend
+
+2. **Processing Phase**
+   - Worker detects VTT file
+   - Parses VTT format:
+     - Extracts timestamps (HH:MM:SS.mmm)
+     - Converts to seconds
+     - Builds transcript text
+     - Creates segments array
+   - **Skips Whisper entirely** (saves 1-5+ minutes)
+   - Proceeds directly to LLM segmentation
+
+3. **Benefits**
+   - Faster processing (no transcription wait)
+   - Lower GPU usage
+   - Use professional/existing transcriptions
+   - Ideal for re-processing videos
 
 ### Re-Generate Segments (Frontend Only)
 
@@ -216,6 +243,7 @@ Splice is a local-first video segmentation system that uses AI to automatically 
 
 ```
 /server/uploads/          # Video files
+/server/uploads/*.vtt     # VTT transcription files (optional)
 /server/uploads/audio/    # Extracted audio
 /server/uploads/segments/ # Trimmed segments
 /logs/                    # Production PM2 logs
