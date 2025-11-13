@@ -13,6 +13,7 @@ export interface VideoJob {
   errorMessage?: string
   progress?: number
   hasCustomTranscript?: boolean
+  hasVttFile?: boolean
 }
 
 export type JobStatus = 
@@ -41,4 +42,5 @@ export interface LLMSettings {
 export interface ProcessingOptions {
   llmSettings: LLMSettings
   customTranscript?: string
+  vttFilePath?: string
 }

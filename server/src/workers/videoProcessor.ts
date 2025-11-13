@@ -117,10 +117,13 @@ class VideoProcessor {
   }
 
   private async processJob(job: Job<VideoJob & ProcessingOptions>): Promise<any> {
-    const { id, fileName, filePath, llmSettings, customTranscript } = job.data
+    const { id, fileName, filePath, llmSettings, customTranscript, vttFilePath } = job.data
     
     try {
       console.log(`🎬 Starting video processing: ${id} (${fileName})`)
+      if (vttFilePath) {
+        console.log(`📄 VTT file provided: ${vttFilePath} - Whisper transcription will be skipped`)
+      }
       
       // Update job status
       await job.updateProgress(0)
@@ -135,10 +138,10 @@ class VideoProcessor {
       wsService.sendJobUpdate(id, {
         status: 'transcribing',
         progress: 10,
-        message: 'Transcribing audio...'
+        message: vttFilePath ? 'Reading VTT transcription...' : 'Transcribing audio...'
       })
 
-      const transcriptionResult = await this.transcribeVideo(filePath, customTranscript)
+      const transcriptionResult = await this.transcribeVideo(filePath, customTranscript, vttFilePath)
       
       console.log(`🔍 DEBUG: Transcription completed for job ${id}:`, {
         transcriptLength: transcriptionResult.transcript?.length || 0,
@@ -236,11 +239,17 @@ class VideoProcessor {
     }
   }
 
-  private async transcribeVideo(filePath: string, customTranscript?: string): Promise<{
+  private async transcribeVideo(filePath: string, customTranscript?: string, vttFilePath?: string): Promise<{
     transcript: string
     segments: any[]
     duration: number
   }> {
+    // If VTT file provided, parse it instead of using Whisper
+    if (vttFilePath) {
+      console.log(`📄 Parsing VTT file: ${vttFilePath}`)
+      return this.parseVTTFile(vttFilePath)
+    }
+    
     if (customTranscript) {
       // Use custom transcript
       return {
@@ -324,6 +333,117 @@ class VideoProcessor {
       }
       throw error
     }
+  }
+
+  private async parseVTTFile(vttFilePath: string): Promise<{
+    transcript: string
+    segments: any[]
+    duration: number
+  }> {
+    try {
+      console.log(`📄 Reading VTT file: ${vttFilePath}`)
+      
+      const vttContent = fs.readFileSync(vttFilePath, 'utf-8')
+      const segments: any[] = []
+      let transcript = ''
+      let maxDuration = 0
+
+      // Parse VTT format
+      // Example:
+      // WEBVTT
+      //
+      // 1
+      // 00:00:00.000 --> 00:00:05.000
+      // First subtitle text
+      
+      const lines = vttContent.split('\n')
+      let currentSegment: { start: number; end: number; text: string } | null = null
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim()
+        
+        // Skip WEBVTT header, empty lines, and NOTE sections
+        if (line === '' || line.startsWith('WEBVTT') || line.startsWith('NOTE') || /^\d+$/.test(line)) {
+          continue
+        }
+        
+        // Parse timestamp line (00:00:00.000 --> 00:00:05.000)
+        if (line.includes('-->')) {
+          const [startStr, endStr] = line.split('-->').map(s => s.trim())
+          const start = this.parseVTTTimestamp(startStr)
+          const end = this.parseVTTTimestamp(endStr)
+          
+          currentSegment = { start, end, text: '' }
+          maxDuration = Math.max(maxDuration, end)
+          continue
+        }
+        
+        // Parse subtitle text
+        if (currentSegment && line !== '') {
+          if (currentSegment.text !== '') {
+            currentSegment.text += ' '
+          }
+          currentSegment.text += line
+          
+          // Check if next line is empty or another timestamp (end of this subtitle)
+          const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : ''
+          if (nextLine === '' || nextLine.includes('-->') || /^\d+$/.test(nextLine)) {
+            // Segment complete
+            segments.push({
+              start: currentSegment.start,
+              end: currentSegment.end,
+              text: currentSegment.text.trim()
+            })
+            
+            transcript += (transcript ? ' ' : '') + currentSegment.text.trim()
+            currentSegment = null
+          }
+        }
+      }
+      
+      // Add any remaining segment
+      if (currentSegment && currentSegment.text) {
+        segments.push({
+          start: currentSegment.start,
+          end: currentSegment.end,
+          text: currentSegment.text.trim()
+        })
+        transcript += (transcript ? ' ' : '') + currentSegment.text.trim()
+      }
+
+      console.log(`✅ Parsed VTT file: ${segments.length} segments, ${transcript.length} chars, ${maxDuration}s duration`)
+      
+      return {
+        transcript: transcript.trim(),
+        segments,
+        duration: maxDuration
+      }
+    } catch (error) {
+      console.error(`❌ Failed to parse VTT file: ${vttFilePath}`, error)
+      throw new Error(`Failed to parse VTT file: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  private parseVTTTimestamp(timestamp: string): number {
+    // Parse timestamp format: HH:MM:SS.mmm or MM:SS.mmm
+    const parts = timestamp.split(':')
+    let hours = 0, minutes = 0, seconds = 0
+    
+    if (parts.length === 3) {
+      // HH:MM:SS.mmm
+      hours = parseInt(parts[0])
+      minutes = parseInt(parts[1])
+      seconds = parseFloat(parts[2])
+    } else if (parts.length === 2) {
+      // MM:SS.mmm
+      minutes = parseInt(parts[0])
+      seconds = parseFloat(parts[1])
+    } else {
+      // SS.mmm
+      seconds = parseFloat(parts[0])
+    }
+    
+    return hours * 3600 + minutes * 60 + seconds
   }
 
   private cleanupJobFile(filePath: string) {

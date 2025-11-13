@@ -231,11 +231,12 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
     }
   }
 
-  const handleUpload = async (file: File, customTranscript?: string) => {
+  const handleUpload = async (file: File, vttFile?: File) => {
     // Create a temporary ID for the pending job
     const tempJobId = `pending-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     
     console.log('🚀 Starting upload process for:', file.name, 'tempJobId:', tempJobId)
+    console.log('🎬 VTT file:', vttFile ? vttFile.name : 'none')
     
     // Add to pending jobs immediately for instant UI feedback
     setPendingJobs(prev => new Map(prev.set(tempJobId, { 
@@ -251,7 +252,7 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
       console.log('📤 Calling queueAPI.uploadVideo...')
       const result = await queueAPI.uploadVideo(
         file,
-        { llmSettings, customTranscript }
+        { llmSettings, vttFile }
       )
       console.log('✅ queueAPI.uploadVideo result:', result)
       

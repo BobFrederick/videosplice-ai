@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react'
-import { UploadSimple, VideoCamera, CheckCircle, Warning, Spinner } from '@phosphor-icons/react'
+import { UploadSimple, VideoCamera, CheckCircle, Warning, Spinner, FileText } from '@phosphor-icons/react'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
 interface UploadZoneProps {
-  onUpload: (file: File, customTranscript?: string) => void
+  onUpload: (file: File, vttFile?: File) => void
   isUploading?: boolean
   uploadProgress?: number
   isProcessing?: boolean
@@ -21,6 +23,9 @@ export function UploadZone({
 }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showVttDialog, setShowVttDialog] = useState(false)
+  const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null)
+  const [vttFile, setVttFile] = useState<File | null>(null)
 
   const validateFile = (file: File): string | null => {
     const validTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo']
@@ -37,6 +42,19 @@ export function UploadZone({
     return null
   }
 
+  const validateVttFile = (file: File): string | null => {
+    if (!file.name.endsWith('.vtt')) {
+      return 'Please upload a valid VTT subtitle file'
+    }
+    
+    const maxSize = 10 * 1024 * 1024 // 10MB for VTT files
+    if (file.size > maxSize) {
+      return 'VTT file size exceeds 10MB limit'
+    }
+
+    return null
+  }
+
   const handleFile = useCallback((file: File) => {
     setError(null)
     const validationError = validateFile(file)
@@ -46,8 +64,42 @@ export function UploadZone({
       return
     }
 
-    onUpload(file)
-  }, [onUpload])
+    // Show VTT dialog before processing
+    setPendingVideoFile(file)
+    setVttFile(null)
+    setShowVttDialog(true)
+  }, [])
+
+  const handleVttUpload = useCallback(() => {
+    if (pendingVideoFile) {
+      onUpload(pendingVideoFile, vttFile || undefined)
+      setShowVttDialog(false)
+      setPendingVideoFile(null)
+      setVttFile(null)
+    }
+  }, [pendingVideoFile, vttFile, onUpload])
+
+  const handleSkipVtt = useCallback(() => {
+    if (pendingVideoFile) {
+      onUpload(pendingVideoFile)
+      setShowVttDialog(false)
+      setPendingVideoFile(null)
+      setVttFile(null)
+    }
+  }, [pendingVideoFile, onUpload])
+
+  const handleVttFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const validationError = validateVttFile(file)
+      if (validationError) {
+        setError(validationError)
+        return
+      }
+      setVttFile(file)
+      setError(null)
+    }
+  }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -131,6 +183,77 @@ export function UploadZone({
           </div>
         </div>
       </label>
+
+      {/* VTT Upload Dialog */}
+      <Dialog open={showVttDialog} onOpenChange={setShowVttDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Optional: Upload Transcription</DialogTitle>
+            <DialogDescription>
+              Do you have an existing VTT transcription file? Uploading one will skip the audio transcription step and save time.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {vttFile ? (
+              <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                <CheckCircle size={24} weight="fill" className="text-green-600 dark:text-green-400" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-green-900 dark:text-green-100">{vttFile.name}</p>
+                  <p className="text-xs text-green-700 dark:text-green-300">{(vttFile.size / 1024).toFixed(2)} KB</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setVttFile(null)}
+                >
+                  Remove
+                </Button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:border-purple-500 dark:hover:border-purple-400 transition-colors">
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".vtt"
+                  onChange={handleVttFileSelect}
+                />
+                <FileText size={32} weight="duotone" className="text-gray-400 mb-2" />
+                <p className="text-sm text-center text-gray-600 dark:text-gray-400">
+                  Click to upload VTT file
+                </p>
+                <p className="text-xs text-center text-gray-500 dark:text-gray-500 mt-1">
+                  Optional subtitle/transcription file
+                </p>
+              </label>
+            )}
+            
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                <Warning size={20} className="text-red-600 dark:text-red-400" />
+                <p className="text-sm text-red-900 dark:text-red-100">{error}</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={handleSkipVtt}
+              className="w-full sm:w-auto"
+            >
+              Skip - Use Whisper
+            </Button>
+            <Button
+              onClick={handleVttUpload}
+              className="w-full sm:w-auto"
+              disabled={!vttFile && !pendingVideoFile}
+            >
+              {vttFile ? 'Upload with VTT' : 'Upload without VTT'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
