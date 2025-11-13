@@ -236,4 +236,4 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 
 ---
 
-Made with ❤️ for internal use
+Made with ❤️ for internal use at your org!
