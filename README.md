@@ -8,11 +8,14 @@ Splice automatically analyzes your videos and creates intelligent chapter segmen
 
 - 🎙️ **Local Speech Recognition** - Whisper.cpp with GPU acceleration
 - 📄 **VTT Upload Support** - Skip transcription by uploading existing .vtt subtitle files
-- 🧠 **AI-Powered Segmentation** - Ollama LLM analyzes content for meaningful chapters, with configurable model selection.
+- 🧠 **AI-Powered Segmentation** - Multiple LLM provider support:
+  - **Local (Ollama)** - Default, 100% local, no API costs
+  - **OpenAI** - GPT-4, GPT-3.5, configurable via Settings
+  - **Anthropic (Claude)** - Claude 3 models, configurable via Settings
 - ✂️ **Interactive Timeline** - Visual editor with drag-to-adjust segments
 - 📥 **Easy Export** - Download trimmed videos with matching subtitle files
 - 🎨 **Modern Interface** - Clean, dark-mode ready UI
-- 🔒 **100% Local** - Your videos never leave your computer
+- 🔒 **Privacy Focused** - Local-first with optional cloud providers
 
 > **Note:** Splice is designed as an internal tool for single-user or trusted team use. All users share the same job queue, so in multi-user deployments everyone can see each other's jobs. For user isolation, deploy separate instances.
 
@@ -20,13 +23,25 @@ Splice automatically analyzes your videos and creates intelligent chapter segmen
 
 ### Prerequisites
 
-Before you begin, ensure you have:
-
+**Required for basic operation:**
 - **Node.js** 18+ ([Download](https://nodejs.org/))
 - **Redis** 6+ ([Installation Guide](https://redis.io/docs/install/))
 - **FFmpeg** ([Installation Guide](https://ffmpeg.org/download.html))
-- **Ollama** ([Installation Guide](https://ollama.ai/))
+
+**Choose your LLM provider:**
+- **Local (Ollama)** - Recommended for privacy ([Installation Guide](https://ollama.ai/))
+  - No API costs, fully offline
+  - Requires: Ollama + local models (qwen2.5:7b, etc.)
+- **OpenAI** - Easy setup, requires API key
+  - No local installation needed
+  - Pay per use via OpenAI API
+- **Anthropic (Claude)** - Advanced models, requires API key
+  - No local installation needed
+  - Pay per use via Anthropic API
+
+**Required for transcription:**
 - **Whisper.cpp** ([Setup Guide](https://github.com/ggerganov/whisper.cpp))
+  - Or upload your own VTT files to skip transcription
 
 ### Installation
 
@@ -110,6 +125,30 @@ First subtitle text
 Second subtitle text
 ```
 
+### LLM Provider Configuration
+
+Splice supports multiple AI providers for segment generation. Configure in **Settings** (gear icon):
+
+**Local (Ollama) - Default**
+- Install Ollama: `curl -fsSL https://ollama.ai/install.sh | sh`
+- Pull a model: `ollama pull qwen2.5:7b`
+- Set endpoint: `http://localhost:11434` (default)
+- **Note:** Initial video processing always uses local Ollama
+
+**OpenAI**
+- Get API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+- In Settings: Select "OpenAI" provider
+- Enter API key and choose model (gpt-4o, gpt-3.5-turbo, etc.)
+- **Use case:** Re-generate segments with cloud models
+
+**Anthropic (Claude)**
+- Get API key from [Anthropic Console](https://console.anthropic.com/)
+- In Settings: Select "Anthropic" provider  
+- Enter API key and choose model (claude-3-sonnet, claude-3-opus, etc.)
+- **Use case:** Re-generate segments with Claude models
+
+> **Important:** Initial video upload processing uses local Ollama only. OpenAI/Anthropic can be used when re-generating segments from the project view.
+
 ### Timeline Shortcuts
 
 - **Click** - Seek to position
@@ -129,8 +168,10 @@ Second subtitle text
 - Redis, WebSockets
 
 **AI/ML**
-- Whisper.cpp (transcription)
-- Ollama (segmentation)
+- Whisper.cpp (local transcription)
+- Ollama (local LLM - default)
+- OpenAI API (optional cloud LLM)
+- Anthropic API (optional cloud LLM)
 - FFmpeg (video processing)
 
 ## � Deployment
