@@ -10,7 +10,7 @@
     "worker": "node dist/server/src/workers/videoProcessor.js"
   },
   "dependencies": {
-    "@types/form-data": "^2.2.1",
+    "@types/form-data": "^2.5.2",
     "axios": "^1.13.0",
     "bullmq": "^5.61.2",
     "cors": "^2.8.5",
