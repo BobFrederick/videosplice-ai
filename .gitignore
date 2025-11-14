@@ -36,8 +36,13 @@ pids
 # Splice-specific ignores
 
 # Uploaded videos (temporary storage)
+uploads/
 server/uploads/*
 !server/uploads/.gitkeep
+
+# Video and transcript files (never commit these)
+*.mp4
+*.vtt
 
 # Whisper model files (large binary files)
 *.bin
