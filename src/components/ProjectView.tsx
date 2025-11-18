@@ -12,6 +12,7 @@ import { VideoPlayer } from '@/components/VideoPlayer'
 import { Timeline } from '@/components/Timeline'
 import { SegmentEditor } from '@/components/SegmentEditor'
 import { TranscriptViewer } from '@/components/TranscriptViewer'
+import { TranscriptViewerTextBased } from '@/components/TranscriptViewerTextBased'
 import { ExportView } from '@/components/ExportView'
 import { DeleteProjectDialog } from '@/components/DeleteProjectDialog'
 import type { Project, Segment } from '@/lib/types'
@@ -362,13 +363,25 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
             />
 
             {project.transcript && (
-              <TranscriptViewer
-                transcript={project.transcript}
-                segments={project.segments}
-                onTranscriptUpdate={handleTranscriptUpdate}
-                editable={true}
-                selectedSegmentId={selectedSegmentId}
-              />
+              project.whisperSegments && project.whisperSegments.length > 0 ? (
+                <TranscriptViewerTextBased
+                  transcript={project.transcript}
+                  segments={project.segments}
+                  whisperSegments={project.whisperSegments}
+                  onTranscriptUpdate={handleTranscriptUpdate}
+                  onSegmentChange={handleSegmentChange}
+                  editable={true}
+                  selectedSegmentId={selectedSegmentId}
+                />
+              ) : (
+                <TranscriptViewer
+                  transcript={project.transcript}
+                  segments={project.segments}
+                  onTranscriptUpdate={handleTranscriptUpdate}
+                  editable={true}
+                  selectedSegmentId={selectedSegmentId}
+                />
+              )
             )}
           </div>
 

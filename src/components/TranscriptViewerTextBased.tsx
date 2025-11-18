@@ -1,0 +1,395 @@
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { PencilSimple, Check, X, Copy, Download, Scissors, Plus } from '@phosphor-icons/react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import { toast } from 'sonner'
+import type { Segment, WhisperSegment } from '@/lib/types'
+
+interface TranscriptViewerTextBasedProps {
+  transcript: string
+  segments?: Segment[]
+  whisperSegments?: WhisperSegment[]
+  onTranscriptUpdate?: (transcript: string) => void
+  onSegmentChange?: (segments: Segment[]) => void
+  editable?: boolean
+  selectedSegmentId?: string
+}
+
+export function TranscriptViewerTextBased({ 
+  transcript, 
+  segments = [], 
+  whisperSegments = [],
+  onTranscriptUpdate, 
+  onSegmentChange,
+  editable = true, 
+  selectedSegmentId 
+}: TranscriptViewerTextBasedProps) {
+  const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null)
+  const [editedSegmentTexts, setEditedSegmentTexts] = useState<Record<string, string>>({})
+  const [selectedText, setSelectedText] = useState<{ text: string; startTime: number; endTime: number } | null>(null)
+  const segmentRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null)
+  const transcriptRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to selected segment when it changes
+  useEffect(() => {
+    if (selectedSegmentId && segmentRefs.current[selectedSegmentId] && scrollAreaRef.current) {
+      const segmentElement = segmentRefs.current[selectedSegmentId]
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
+      
+      if (segmentElement && scrollContainer) {
+        const containerRect = scrollContainer.getBoundingClientRect()
+        const elementRect = segmentElement.getBoundingClientRect()
+        const scrollTop = scrollContainer.scrollTop
+        
+        const targetScrollTop = scrollTop + (elementRect.top - containerRect.top) - (containerRect.height / 2) + (elementRect.height / 2)
+        
+        scrollContainer.scrollTo({
+          top: targetScrollTop,
+          behavior: 'smooth'
+        })
+      }
+    }
+  }, [selectedSegmentId])
+
+  // Get timestamp range for selected text
+  const getTimestampForTextSelection = useCallback((): { startTime: number; endTime: number } | null => {
+    if (!whisperSegments || whisperSegments.length === 0) {
+      return null
+    }
+
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0 || selection.toString().trim() === '') {
+      return null
+    }
+
+    // Get the selected text content
+    const selectedText = selection.toString()
+    
+    // Find the character positions of the selection in the full transcript
+    const range = selection.getRangeAt(0)
+    const preSelectionRange = range.cloneRange()
+    preSelectionRange.selectNodeContents(transcriptRef.current!)
+    preSelectionRange.setEnd(range.startContainer, range.startOffset)
+    const startCharOffset = preSelectionRange.toString().length
+
+    const endCharOffset = startCharOffset + selectedText.length
+
+    // Map character positions to whisper segments
+    let currentCharPos = 0
+    let startTime: number | null = null
+    let endTime: number | null = null
+
+    for (const whisperSeg of whisperSegments) {
+      const segTextLength = whisperSeg.text.length
+      const segStartChar = currentCharPos
+      const segEndChar = currentCharPos + segTextLength
+
+      // Check if this segment overlaps with the selection
+      if (startTime === null && segEndChar > startCharOffset) {
+        startTime = whisperSeg.start
+      }
+
+      if (segStartChar < endCharOffset) {
+        endTime = whisperSeg.end
+      }
+
+      if (segStartChar >= endCharOffset) {
+        break
+      }
+
+      currentCharPos = segEndChar + 1 // +1 for space between segments
+    }
+
+    if (startTime !== null && endTime !== null) {
+      return { startTime, endTime }
+    }
+
+    return null
+  }, [whisperSegments])
+
+  // Handle text selection
+  const handleTextSelection = useCallback(() => {
+    const selection = window.getSelection()
+    if (!selection || selection.toString().trim() === '') {
+      setSelectedText(null)
+      return
+    }
+
+    const timestamps = getTimestampForTextSelection()
+    if (timestamps) {
+      setSelectedText({
+        text: selection.toString(),
+        startTime: timestamps.startTime,
+        endTime: timestamps.endTime
+      })
+    }
+  }, [getTimestampForTextSelection])
+
+  // Handle delete key to split/modify segments
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedText && onSegmentChange) {
+      e.preventDefault()
+      
+      // Find segments that overlap with the selected text
+      const affectedSegments = segments.filter(seg => 
+        !(selectedText.endTime <= seg.startTime || selectedText.startTime >= seg.endTime)
+      )
+
+      if (affectedSegments.length === 0) {
+        toast.error('No segments overlap with selected text')
+        return
+      }
+
+      // Split or modify segments based on selection
+      const newSegments = [...segments]
+      
+      affectedSegments.forEach(segment => {
+        const segIndex = newSegments.findIndex(s => s.id === segment.id)
+        if (segIndex === -1) return
+
+        // Case 1: Selection is entirely within the segment
+        if (selectedText.startTime >= segment.startTime && selectedText.endTime <= segment.endTime) {
+          // Split into two segments
+          const leftSegment: Segment = {
+            ...segment,
+            endTime: selectedText.startTime,
+          }
+          const rightSegment: Segment = {
+            id: `segment-${Date.now()}-split`,
+            title: segment.title + ' (split)',
+            startTime: selectedText.endTime,
+            endTime: segment.endTime,
+            description: segment.description,
+          }
+          
+          // Replace the original segment with two new ones
+          newSegments.splice(segIndex, 1, leftSegment, rightSegment)
+          toast.success('Created split at selected text')
+        }
+        // Case 2: Selection starts in the segment
+        else if (selectedText.startTime >= segment.startTime && selectedText.startTime < segment.endTime) {
+          newSegments[segIndex] = {
+            ...segment,
+            endTime: selectedText.startTime,
+          }
+          toast.success('Trimmed segment end')
+        }
+        // Case 3: Selection ends in the segment
+        else if (selectedText.endTime > segment.startTime && selectedText.endTime <= segment.endTime) {
+          newSegments[segIndex] = {
+            ...segment,
+            startTime: selectedText.endTime,
+          }
+          toast.success('Trimmed segment start')
+        }
+      })
+
+      onSegmentChange(newSegments)
+      setSelectedText(null)
+      window.getSelection()?.removeAllRanges()
+    }
+  }, [selectedText, segments, onSegmentChange])
+
+  // Create new segment from selected text
+  const createSegmentFromSelection = useCallback(() => {
+    if (!selectedText || !onSegmentChange) {
+      toast.error('No text selected')
+      return
+    }
+
+    // Check if there's already a segment that exactly matches this range
+    const existingSegment = segments.find(seg => 
+      Math.abs(seg.startTime - selectedText.startTime) < 0.5 && 
+      Math.abs(seg.endTime - selectedText.endTime) < 0.5
+    )
+
+    if (existingSegment) {
+      toast.error('A segment already exists for this time range')
+      return
+    }
+
+    // Find segments that need to be split or adjusted
+    const overlappingSegments = segments.filter(seg => 
+      !(selectedText.endTime <= seg.startTime || selectedText.startTime >= seg.endTime)
+    )
+
+    let newSegments = [...segments]
+
+    // Remove or split overlapping segments
+    overlappingSegments.forEach(segment => {
+      const segIndex = newSegments.findIndex(s => s.id === segment.id)
+      if (segIndex === -1) return
+
+      // If segment is completely contained within selection, remove it
+      if (segment.startTime >= selectedText.startTime && segment.endTime <= selectedText.endTime) {
+        newSegments.splice(segIndex, 1)
+      }
+      // If selection is completely within segment, split it
+      else if (selectedText.startTime > segment.startTime && selectedText.endTime < segment.endTime) {
+        const leftSegment: Segment = {
+          ...segment,
+          endTime: selectedText.startTime,
+        }
+        const rightSegment: Segment = {
+          id: `segment-${Date.now()}-right`,
+          title: segment.title + ' (after)',
+          startTime: selectedText.endTime,
+          endTime: segment.endTime,
+          description: segment.description,
+        }
+        newSegments.splice(segIndex, 1, leftSegment, rightSegment)
+      }
+      // Partial overlaps - adjust boundaries
+      else if (selectedText.startTime <= segment.startTime) {
+        newSegments[segIndex] = {
+          ...segment,
+          startTime: selectedText.endTime,
+        }
+      } else {
+        newSegments[segIndex] = {
+          ...segment,
+          endTime: selectedText.startTime,
+        }
+      }
+    })
+
+    // Add the new segment
+    const newSegment: Segment = {
+      id: `segment-${Date.now()}`,
+      title: 'New Segment',
+      startTime: selectedText.startTime,
+      endTime: selectedText.endTime,
+      description: selectedText.text.substring(0, 100) + (selectedText.text.length > 100 ? '...' : ''),
+    }
+
+    newSegments.push(newSegment)
+
+    // Sort segments by start time
+    newSegments.sort((a, b) => a.startTime - b.startTime)
+
+    onSegmentChange(newSegments)
+    setSelectedText(null)
+    window.getSelection()?.removeAllRanges()
+    toast.success('Created new segment from selection')
+  }, [selectedText, segments, onSegmentChange])
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
+
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
+    const ms = Math.floor((seconds % 1) * 1000)
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`
+  }
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(transcript)
+      toast.success('Transcript copied to clipboard')
+    } catch (error) {
+      toast.error('Failed to copy transcript')
+    }
+  }
+
+  // Render transcript with text selection enabled
+  const renderTranscriptWithSelection = () => {
+    if (!whisperSegments || whisperSegments.length === 0) {
+      return (
+        <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+          {transcript}
+        </div>
+      )
+    }
+
+    return (
+      <ContextMenu>
+        <ContextMenuTrigger>
+          <div 
+            ref={transcriptRef}
+            className="text-sm text-foreground whitespace-pre-wrap leading-relaxed select-text cursor-text"
+            onMouseUp={handleTextSelection}
+            onKeyUp={handleTextSelection}
+          >
+            {whisperSegments.map((whisperSeg, index) => (
+              <span key={index} data-start={whisperSeg.start} data-end={whisperSeg.end}>
+                {whisperSeg.text}{index < whisperSegments.length - 1 ? ' ' : ''}
+              </span>
+            ))}
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem 
+            onClick={createSegmentFromSelection}
+            disabled={!selectedText}
+          >
+            <Plus size={16} className="mr-2" />
+            Create Segment from Selection
+          </ContextMenuItem>
+          <ContextMenuItem 
+            onClick={() => {
+              if (selectedText) {
+                const text = `${formatTime(selectedText.startTime)} - ${formatTime(selectedText.endTime)}`
+                navigator.clipboard.writeText(text)
+                toast.success('Timestamp copied to clipboard')
+              }
+            }}
+            disabled={!selectedText}
+          >
+            <Copy size={16} className="mr-2" />
+            Copy Timestamp
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <CardTitle className="text-base">
+          Transcript
+          {whisperSegments && whisperSegments.length > 0 && (
+            <span className="ml-2 text-xs text-muted-foreground font-normal">
+              (Text-based editing enabled)
+            </span>
+          )}
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={handleCopy}>
+            <Copy size={16} weight="bold" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <ScrollArea className="h-[300px] max-h-[500px] pr-4" ref={scrollAreaRef}>
+          {renderTranscriptWithSelection()}
+          {selectedText && (
+            <div className="mt-4 p-3 bg-primary/10 rounded-md border border-primary/20">
+              <p className="text-xs font-medium text-primary mb-1">
+                Selection: {formatTime(selectedText.startTime)} - {formatTime(selectedText.endTime)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Press <kbd className="px-1.5 py-0.5 bg-background rounded border">Delete</kbd> to split/remove, 
+                or right-click to create segment
+              </p>
+            </div>
+          )}
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  )
+}
