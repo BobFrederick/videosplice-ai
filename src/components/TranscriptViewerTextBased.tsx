@@ -77,16 +77,27 @@ export function TranscriptViewerTextBased({
       return null
     }
 
+    // Ensure the selection is within our transcript ref
+    if (!transcriptRef.current || !transcriptRef.current.contains(selection.anchorNode)) {
+      return null
+    }
+
     // Get the selected text content
     const selectedText = selection.toString()
     
     // Find the character positions of the selection in the full transcript
     const range = selection.getRangeAt(0)
     const preSelectionRange = range.cloneRange()
-    preSelectionRange.selectNodeContents(transcriptRef.current!)
-    preSelectionRange.setEnd(range.startContainer, range.startOffset)
+    
+    try {
+      preSelectionRange.selectNodeContents(transcriptRef.current!)
+      preSelectionRange.setEnd(range.startContainer, range.startOffset)
+    } catch (error) {
+      console.error('Error calculating text selection:', error)
+      return null
+    }
+    
     const startCharOffset = preSelectionRange.toString().length
-
     const endCharOffset = startCharOffset + selectedText.length
 
     // Map character positions to whisper segments
@@ -145,6 +156,15 @@ export function TranscriptViewerTextBased({
     if ((e.key === 'Delete' || e.key === 'Backspace') && selectedText && onSegmentChange) {
       e.preventDefault()
       
+      // Validate minimum duration for split segments
+      const MIN_SEGMENT_DURATION = 1.0 // 1 second minimum
+      const selectionDuration = selectedText.endTime - selectedText.startTime
+      
+      if (selectionDuration < MIN_SEGMENT_DURATION) {
+        toast.error(`Selection too short (${selectionDuration.toFixed(1)}s). Minimum ${MIN_SEGMENT_DURATION}s required.`)
+        return
+      }
+      
       // Find segments that overlap with the selected text
       const affectedSegments = segments.filter(seg => 
         !(selectedText.endTime <= seg.startTime || selectedText.startTime >= seg.endTime)
@@ -157,13 +177,23 @@ export function TranscriptViewerTextBased({
 
       // Split or modify segments based on selection
       const newSegments = [...segments]
+      let modificationsCount = 0
       
       affectedSegments.forEach(segment => {
         const segIndex = newSegments.findIndex(s => s.id === segment.id)
         if (segIndex === -1) return
 
         // Case 1: Selection is entirely within the segment
-        if (selectedText.startTime >= segment.startTime && selectedText.endTime <= segment.endTime) {
+        if (selectedText.startTime > segment.startTime && selectedText.endTime < segment.endTime) {
+          const leftDuration = selectedText.startTime - segment.startTime
+          const rightDuration = segment.endTime - selectedText.endTime
+          
+          // Ensure both resulting segments meet minimum duration
+          if (leftDuration < MIN_SEGMENT_DURATION || rightDuration < MIN_SEGMENT_DURATION) {
+            toast.error(`Split would create segments shorter than ${MIN_SEGMENT_DURATION}s. Adjust selection.`)
+            return
+          }
+          
           // Split into two segments
           const leftSegment: Segment = {
             ...segment,
@@ -179,29 +209,42 @@ export function TranscriptViewerTextBased({
           
           // Replace the original segment with two new ones
           newSegments.splice(segIndex, 1, leftSegment, rightSegment)
-          toast.success('Created split at selected text')
+          modificationsCount++
         }
         // Case 2: Selection starts in the segment
         else if (selectedText.startTime >= segment.startTime && selectedText.startTime < segment.endTime) {
+          const newDuration = selectedText.startTime - segment.startTime
+          if (newDuration < MIN_SEGMENT_DURATION) {
+            toast.error(`Operation would create a segment shorter than ${MIN_SEGMENT_DURATION}s`)
+            return
+          }
           newSegments[segIndex] = {
             ...segment,
             endTime: selectedText.startTime,
           }
-          toast.success('Trimmed segment end')
+          modificationsCount++
         }
         // Case 3: Selection ends in the segment
         else if (selectedText.endTime > segment.startTime && selectedText.endTime <= segment.endTime) {
+          const newDuration = segment.endTime - selectedText.endTime
+          if (newDuration < MIN_SEGMENT_DURATION) {
+            toast.error(`Operation would create a segment shorter than ${MIN_SEGMENT_DURATION}s`)
+            return
+          }
           newSegments[segIndex] = {
             ...segment,
             startTime: selectedText.endTime,
           }
-          toast.success('Trimmed segment start')
+          modificationsCount++
         }
       })
 
-      onSegmentChange(newSegments)
-      setSelectedText(null)
-      window.getSelection()?.removeAllRanges()
+      if (modificationsCount > 0) {
+        onSegmentChange(newSegments)
+        setSelectedText(null)
+        window.getSelection()?.removeAllRanges()
+        toast.success(`Modified ${modificationsCount} segment${modificationsCount > 1 ? 's' : ''}`)
+      }
     }
   }, [selectedText, segments, onSegmentChange])
 
@@ -209,6 +252,14 @@ export function TranscriptViewerTextBased({
   const createSegmentFromSelection = useCallback(() => {
     if (!selectedText || !onSegmentChange) {
       toast.error('No text selected')
+      return
+    }
+
+    const MIN_SEGMENT_DURATION = 1.0 // 1 second minimum
+    const selectionDuration = selectedText.endTime - selectedText.startTime
+    
+    if (selectionDuration < MIN_SEGMENT_DURATION) {
+      toast.error(`Selection too short (${selectionDuration.toFixed(1)}s). Minimum ${MIN_SEGMENT_DURATION}s required.`)
       return
     }
 
@@ -229,6 +280,7 @@ export function TranscriptViewerTextBased({
     )
 
     let newSegments = [...segments]
+    let modificationsCount = 0
 
     // Remove or split overlapping segments
     overlappingSegments.forEach(segment => {
@@ -238,9 +290,18 @@ export function TranscriptViewerTextBased({
       // If segment is completely contained within selection, remove it
       if (segment.startTime >= selectedText.startTime && segment.endTime <= selectedText.endTime) {
         newSegments.splice(segIndex, 1)
+        modificationsCount++
       }
       // If selection is completely within segment, split it
       else if (selectedText.startTime > segment.startTime && selectedText.endTime < segment.endTime) {
+        const leftDuration = selectedText.startTime - segment.startTime
+        const rightDuration = segment.endTime - selectedText.endTime
+        
+        if (leftDuration < MIN_SEGMENT_DURATION || rightDuration < MIN_SEGMENT_DURATION) {
+          toast.error(`Creating segment would result in segments shorter than ${MIN_SEGMENT_DURATION}s`)
+          return
+        }
+        
         const leftSegment: Segment = {
           ...segment,
           endTime: selectedText.startTime,
@@ -253,18 +314,31 @@ export function TranscriptViewerTextBased({
           description: segment.description,
         }
         newSegments.splice(segIndex, 1, leftSegment, rightSegment)
+        modificationsCount++
       }
       // Partial overlaps - adjust boundaries
       else if (selectedText.startTime <= segment.startTime) {
-        newSegments[segIndex] = {
-          ...segment,
-          startTime: selectedText.endTime,
+        const newDuration = segment.endTime - selectedText.endTime
+        if (newDuration < MIN_SEGMENT_DURATION) {
+          newSegments.splice(segIndex, 1) // Remove if too short
+        } else {
+          newSegments[segIndex] = {
+            ...segment,
+            startTime: selectedText.endTime,
+          }
         }
+        modificationsCount++
       } else {
-        newSegments[segIndex] = {
-          ...segment,
-          endTime: selectedText.startTime,
+        const newDuration = selectedText.startTime - segment.startTime
+        if (newDuration < MIN_SEGMENT_DURATION) {
+          newSegments.splice(segIndex, 1) // Remove if too short
+        } else {
+          newSegments[segIndex] = {
+            ...segment,
+            endTime: selectedText.startTime,
+          }
         }
+        modificationsCount++
       }
     })
 
@@ -285,7 +359,7 @@ export function TranscriptViewerTextBased({
     onSegmentChange(newSegments)
     setSelectedText(null)
     window.getSelection()?.removeAllRanges()
-    toast.success('Created new segment from selection')
+    toast.success(`Created new segment (modified ${modificationsCount} existing segment${modificationsCount !== 1 ? 's' : ''})`)
   }, [selectedText, segments, onSegmentChange])
 
   useEffect(() => {
