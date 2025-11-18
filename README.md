@@ -222,6 +222,7 @@ splice/
 
 - [Deployment Guide](./docs/DEPLOYMENT.md) - Production deployment and PM2 setup
 - [System Architecture](./docs/ARCHITECTURE.md) - Technical overview and data flow
+- [Text-Based Editing](./docs/TEXT_BASED_EDITING.md) - Complete guide to text-based video editing
 - [Security](./docs/SECURITY.md) - Security considerations
 
 ## 🐛 Troubleshooting
