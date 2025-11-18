@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { PencilSimple, Check, X, Copy, Download, Scissors, Plus } from '@phosphor-icons/react'
+import { PencilSimple, Check, X, Copy, Download, Scissors, Plus, Info } from '@phosphor-icons/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -10,6 +10,11 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/ui/alert'
 import { toast } from 'sonner'
 import type { Segment, WhisperSegment } from '@/lib/types'
 
@@ -35,6 +40,7 @@ export function TranscriptViewerTextBased({
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null)
   const [editedSegmentTexts, setEditedSegmentTexts] = useState<Record<string, string>>({})
   const [selectedText, setSelectedText] = useState<{ text: string; startTime: number; endTime: number } | null>(null)
+  const [showHelp, setShowHelp] = useState(false)
   const segmentRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
   const transcriptRef = useRef<HTMLDivElement>(null)
@@ -320,12 +326,17 @@ export function TranscriptViewerTextBased({
         <ContextMenuTrigger>
           <div 
             ref={transcriptRef}
-            className="text-sm text-foreground whitespace-pre-wrap leading-relaxed select-text cursor-text"
+            className="text-sm text-foreground whitespace-pre-wrap leading-relaxed select-text cursor-text p-3 rounded-md hover:bg-muted/30 transition-colors"
             onMouseUp={handleTextSelection}
             onKeyUp={handleTextSelection}
           >
             {whisperSegments.map((whisperSeg, index) => (
-              <span key={index} data-start={whisperSeg.start} data-end={whisperSeg.end}>
+              <span 
+                key={index} 
+                data-start={whisperSeg.start} 
+                data-end={whisperSeg.end}
+                className="hover:bg-primary/10 transition-colors"
+              >
                 {whisperSeg.text}{index < whisperSegments.length - 1 ? ' ' : ''}
               </span>
             ))}
@@ -369,12 +380,32 @@ export function TranscriptViewerTextBased({
           )}
         </CardTitle>
         <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setShowHelp(!showHelp)}
+            title="Show text-based editing help"
+          >
+            <Info size={16} weight="bold" />
+          </Button>
           <Button variant="ghost" size="sm" onClick={handleCopy}>
             <Copy size={16} weight="bold" />
           </Button>
         </div>
       </CardHeader>
       <CardContent>
+        {showHelp && (
+          <Alert className="mb-4">
+            <Info size={16} weight="bold" />
+            <AlertTitle>Text-Based Editing</AlertTitle>
+            <AlertDescription className="text-xs space-y-2 mt-2">
+              <p><strong>Select text</strong> in the transcript to see its timestamp range.</p>
+              <p><strong>Delete/Backspace:</strong> Split or trim segments at selection boundaries.</p>
+              <p><strong>Right-click:</strong> Create a new segment from selected text.</p>
+              <p><strong>Timestamps:</strong> Automatically mapped from speech recognition data.</p>
+            </AlertDescription>
+          </Alert>
+        )}
         <ScrollArea className="h-[300px] max-h-[500px] pr-4" ref={scrollAreaRef}>
           {renderTranscriptWithSelection()}
           {selectedText && (
