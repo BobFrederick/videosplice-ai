@@ -45,7 +45,7 @@ echo "✅ Redis is running"
 
 echo ""
 echo "2️⃣ Checking Whisper server..."
-if curl -s -f http://localhost:3001 > /dev/null 2>&1; then
+if curl -s -f http://localhost:8000/api/health > /dev/null 2>&1; then
     echo "✅ Whisper server is already running"
     WHISPER_PID=""
 else

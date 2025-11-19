@@ -142,6 +142,7 @@ export function TranscriptViewerTextBased({
     }
 
     const timestamps = getTimestampForTextSelection()
+    console.log('📝 Text selected:', selection.toString().substring(0, 50), 'Timestamps:', timestamps)
     if (timestamps) {
       setSelectedText({
         text: selection.toString(),
@@ -385,60 +386,147 @@ export function TranscriptViewerTextBased({
     }
   }
 
-  // Render transcript with text selection enabled
-  const renderTranscriptWithSelection = () => {
-    if (!whisperSegments || whisperSegments.length === 0) {
+  // Render segment cards with inline word-level editing
+  const renderSegmentCards = () => {
+    if (!segments || segments.length === 0) {
+      // No segments yet - show full transcript with word-level editing
       return (
-        <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-          {transcript}
-        </div>
+        <ContextMenu>
+          <ContextMenuTrigger>
+            <div 
+              ref={transcriptRef}
+              className="text-sm text-foreground whitespace-pre-wrap leading-relaxed select-text cursor-text p-3 rounded-md hover:bg-muted/30 transition-colors"
+              onMouseUp={handleTextSelection}
+              onKeyUp={handleTextSelection}
+            >
+              {whisperSegments.map((whisperSeg, index) => (
+                <span key={index}>
+                  <span 
+                    data-start={whisperSeg.start} 
+                    data-end={whisperSeg.end}
+                    className="hover:bg-primary/10 px-0.5 rounded transition-colors"
+                  >
+                    {whisperSeg.text}
+                  </span>
+                  {index < whisperSegments.length - 1 ? ' ' : ''}
+                </span>
+              ))}
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem 
+              onClick={createSegmentFromSelection}
+              disabled={!selectedText}
+            >
+              <Plus size={16} className="mr-2" />
+              Create Segment from Selection
+            </ContextMenuItem>
+            <ContextMenuItem 
+              onClick={() => {
+                if (selectedText) {
+                  const text = `${formatTime(selectedText.startTime)} - ${formatTime(selectedText.endTime)}`
+                  navigator.clipboard.writeText(text)
+                  toast.success('Timestamp copied to clipboard')
+                }
+              }}
+              disabled={!selectedText}
+            >
+              <Copy size={16} className="mr-2" />
+              Copy Timestamp
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
       )
     }
 
+    // Segment cards with inline word-level editing
     return (
-      <ContextMenu>
-        <ContextMenuTrigger>
-          <div 
-            ref={transcriptRef}
-            className="text-sm text-foreground whitespace-pre-wrap leading-relaxed select-text cursor-text p-3 rounded-md hover:bg-muted/30 transition-colors"
-            onMouseUp={handleTextSelection}
-            onKeyUp={handleTextSelection}
-          >
-            {whisperSegments.map((whisperSeg, index) => (
-              <span 
-                key={index} 
-                data-start={whisperSeg.start} 
-                data-end={whisperSeg.end}
-                className="hover:bg-primary/10 transition-colors"
-              >
-                {whisperSeg.text}{index < whisperSegments.length - 1 ? ' ' : ''}
-              </span>
-            ))}
-          </div>
-        </ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem 
-            onClick={createSegmentFromSelection}
-            disabled={!selectedText}
-          >
-            <Plus size={16} className="mr-2" />
-            Create Segment from Selection
-          </ContextMenuItem>
-          <ContextMenuItem 
-            onClick={() => {
-              if (selectedText) {
-                const text = `${formatTime(selectedText.startTime)} - ${formatTime(selectedText.endTime)}`
-                navigator.clipboard.writeText(text)
-                toast.success('Timestamp copied to clipboard')
-              }
-            }}
-            disabled={!selectedText}
-          >
-            <Copy size={16} className="mr-2" />
-            Copy Timestamp
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+      <div className="space-y-4">
+        {segments.map((segment) => {
+          const isSelected = selectedSegmentId === segment.id
+          
+          // Get whisperSegments that fall within this segment's time range
+          const segmentWhisperSegments = whisperSegments.filter(ws => 
+            ws.start >= segment.startTime && ws.end <= segment.endTime
+          )
+          
+          return (
+            <ContextMenu key={segment.id}>
+              <ContextMenuTrigger asChild>
+                <div
+                  ref={(el) => {
+                    if (el) segmentRefs.current[segment.id] = el
+                  }}
+                  className={`border-l-4 pl-4 pb-4 transition-all cursor-text ${
+                    isSelected 
+                      ? 'border-l-purple-500' 
+                      : 'border-l-gray-300 dark:border-l-gray-600'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className={isSelected ? '' : 'opacity-50'}>
+                      <h3 className="font-medium text-sm">{segment.title}</h3>
+                      <div className="text-xs text-muted-foreground">
+                        {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Editable word-level transcript within the card */}
+                  <div
+                    className={`text-sm leading-relaxed select-text ${
+                      isSelected ? 'text-foreground' : 'text-muted-foreground'
+                    }`}
+                    onMouseUp={handleTextSelection}
+                    onKeyUp={handleTextSelection}
+                  >
+                    {segmentWhisperSegments.length > 0 ? (
+                      segmentWhisperSegments.map((whisperSeg, index) => (
+                        <span key={index}>
+                          <span
+                            data-start={whisperSeg.start}
+                            data-end={whisperSeg.end}
+                            className="hover:bg-primary/10 px-0.5 rounded transition-colors"
+                          >
+                            {whisperSeg.text}
+                          </span>
+                          {index < segmentWhisperSegments.length - 1 ? ' ' : ''}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground italic">
+                        {segment.description || 'No transcript text available for this segment'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem 
+                  onClick={createSegmentFromSelection}
+                  disabled={!selectedText}
+                >
+                  <Plus size={16} className="mr-2" />
+                  Create Segment from Selection
+                </ContextMenuItem>
+                <ContextMenuItem 
+                  onClick={() => {
+                    if (selectedText) {
+                      const text = `${formatTime(selectedText.startTime)} - ${formatTime(selectedText.endTime)}`
+                      navigator.clipboard.writeText(text)
+                      toast.success('Timestamp copied to clipboard')
+                    }
+                  }}
+                  disabled={!selectedText}
+                >
+                  <Copy size={16} className="mr-2" />
+                  Copy Timestamp
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          )
+        })}
+      </div>
     )
   }
 
@@ -480,17 +568,23 @@ export function TranscriptViewerTextBased({
             </AlertDescription>
           </Alert>
         )}
+        {selectedText && (
+          <div className="mb-4 p-3 bg-primary/10 rounded-md border border-primary/20">
+            <p className="text-xs font-medium text-primary mb-1">
+              Selection: {formatTime(selectedText.startTime)} - {formatTime(selectedText.endTime)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Press <kbd className="px-1.5 py-0.5 bg-background rounded border">Delete</kbd> to split/remove, 
+              or right-click to create segment
+            </p>
+          </div>
+        )}
         <ScrollArea className="h-[300px] max-h-[500px] pr-4" ref={scrollAreaRef}>
-          {renderTranscriptWithSelection()}
-          {selectedText && (
-            <div className="mt-4 p-3 bg-primary/10 rounded-md border border-primary/20">
-              <p className="text-xs font-medium text-primary mb-1">
-                Selection: {formatTime(selectedText.startTime)} - {formatTime(selectedText.endTime)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Press <kbd className="px-1.5 py-0.5 bg-background rounded border">Delete</kbd> to split/remove, 
-                or right-click to create segment
-              </p>
+          {whisperSegments && whisperSegments.length > 0 ? (
+            renderSegmentCards()
+          ) : (
+            <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+              {transcript || 'No transcript available. Upload a VTT file or process the video with Whisper.'}
             </div>
           )}
         </ScrollArea>

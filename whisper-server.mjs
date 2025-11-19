@@ -70,7 +70,7 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
 
     const outputPath = join(tmpdir(), `transcription_${Date.now()}`)
 
-    // Build whisper command
+    // Build whisper command with word-level timestamps
     const cmd = [
       'whisper',
       '-m', modelPath,
@@ -78,7 +78,8 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       '-of', outputPath,
       '-l', language,
       '--output-json',
-      '--no-prints'
+      '--no-prints',
+      '--max-len', '1'  // Enable word-level timestamps (1 word per segment)
     ].join(' ')
 
     console.log('Running whisper:', cmd)

@@ -43,7 +43,9 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
     id: project.id,
     name: project.name,
     videoUrl: project.videoUrl,
-    segmentCount: project.segments?.length || 0
+    segmentCount: project.segments?.length || 0,
+    hasWhisperSegments: !!project.whisperSegments,
+    whisperSegmentsCount: project.whisperSegments?.length || 0
   })
   
   const [settings] = useLocalStorage<LLMSettings>('llm-settings', {
@@ -170,6 +172,8 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
         throw new Error('Invalid response format from LLM')
       }
 
+      console.log('🤖 Raw LLM response segments:', result.segments)
+
       const segments: Segment[] = result.segments.map((seg: any, index: number) => ({
         id: `segment-${Date.now()}-${index}`,
         title: seg.title || 'Untitled Segment',
@@ -178,39 +182,77 @@ export function ProjectView({ project, onBack, onProjectUpdate, onProjectDelete 
         description: seg.description || '',
       }))
       
+      console.log('📝 Mapped segments:', segments.map(s => ({ title: s.title, start: s.startTime, end: s.endTime, duration: s.endTime - s.startTime })))
+      
       // Filter out invalid segments and clamp times to video duration
       const validSegments = segments.filter(seg => {
-        // Ensure start is before end
-        if (seg.startTime >= seg.endTime) return false
-        // Ensure segment is within video bounds
-        if (seg.startTime >= videoDuration || seg.endTime > videoDuration) return false
-        // Ensure reasonable segment duration (at least 1 second)
-        if (seg.endTime - seg.startTime < 1) return false
-        return true
+        const duration = seg.endTime - seg.startTime
+        const isValid = seg.startTime < seg.endTime && 
+                       seg.startTime < videoDuration && 
+                       seg.endTime <= videoDuration && 
+                       duration >= 1
+        
+        if (!isValid) {
+          console.warn('❌ Filtered out invalid segment:', { 
+            title: seg.title, 
+            start: seg.startTime, 
+            end: seg.endTime, 
+            duration,
+            reason: duration < 1 ? 'too short' : 'invalid times'
+          })
+        }
+        
+        return isValid
       }).map(seg => ({
         ...seg,
         startTime: Math.max(0, seg.startTime),
         endTime: Math.min(videoDuration, seg.endTime)
       }))
       
+      console.log('✅ Valid segments after filtering:', validSegments.length)
+      
       // Sort segments by start time
       const sortedSegments = validSegments.sort((a, b) => a.startTime - b.startTime)
       
-      // Fix gaps between segments - make each segment's end connect to the next segment's start
+      // Fix gaps/overlaps between segments, but don't extend segments more than 30 seconds
       const contiguousSegments = sortedSegments.map((seg, index) => {
         if (index < sortedSegments.length - 1) {
           const nextSeg = sortedSegments[index + 1]
-          // If there's a gap, extend this segment to meet the next one
-          if (seg.endTime < nextSeg.startTime) {
+          const gap = nextSeg.startTime - seg.endTime
+          const overlap = seg.endTime - nextSeg.startTime
+          
+          // If segments overlap, trim this one to meet the next
+          if (overlap > 0) {
+            console.log('🔧 Trimming overlap:', { from: seg.title, to: nextSeg.title, overlap })
             return { ...seg, endTime: nextSeg.startTime }
           }
-          // If segments overlap, trim this one to meet the next
-          if (seg.endTime > nextSeg.startTime) {
+          
+          // If there's a small gap (< 30 seconds), extend this segment to meet the next one
+          if (gap > 0 && gap < 30) {
+            console.log('🔧 Filling small gap:', { from: seg.title, to: nextSeg.title, gap })
             return { ...seg, endTime: nextSeg.startTime }
+          }
+          
+          // Large gap - don't extend, just log it
+          if (gap >= 30) {
+            console.warn('⚠️ Large gap detected (not filling):', { 
+              from: seg.title, 
+              to: nextSeg.title, 
+              gap,
+              segEnd: seg.endTime,
+              nextStart: nextSeg.startTime
+            })
           }
         }
         return seg
       })
+
+      console.log('🎬 Final segments:', contiguousSegments.map(s => ({ 
+        title: s.title, 
+        start: s.startTime.toFixed(1), 
+        end: s.endTime.toFixed(1), 
+        duration: (s.endTime - s.startTime).toFixed(1)
+      })))
 
       if (contiguousSegments.length === 0) {
         throw new Error('No valid segments generated')

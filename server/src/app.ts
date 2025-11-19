@@ -593,7 +593,7 @@ app.get('/api/jobs', async (req, res) => {
     const { status } = req.query
     const jobs = await queueService.getJobs(status as any)
 
-    const jobList = jobs.map(job => {
+    const jobList = jobs.filter(job => job !== null && job !== undefined).map(job => {
       console.log(`🔍 DEBUG API: Job ${job.id} - returnvalue type:`, typeof job.returnvalue)
       console.log(`🔍 DEBUG API: Job ${job.id} - returnvalue exists:`, job.returnvalue ? 'YES' : 'NO')
       console.log(`🔍 DEBUG API: Job ${job.id} - finishedOn:`, job.finishedOn ? 'YES' : 'NO')
