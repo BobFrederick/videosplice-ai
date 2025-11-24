@@ -15,7 +15,7 @@
     "bullmq": "^5.61.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^4.21.2",
+    "express": "^5.1.0",
     "form-data": "^4.0.4",
     "ioredis": "^5.8.2",
     "module-alias": "^2.2.3",
@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
-    "@types/express": "^4.17.24",
+    "@types/express": "^5.0.5",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.9.1",
     "@types/node-cron": "^3.0.11",
