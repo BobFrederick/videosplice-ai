@@ -277,8 +277,9 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
 
       // Subscribe to job updates
       console.log('📡 Setting up WebSocket subscription for job:', jobId)
+      console.log('📡 Current subscribers before adding:', Array.from((queueAPI as any).subscribers?.keys() || []))
       const unsubscribe = queueAPI.subscribeToJob(jobId, (update) => {
-        console.log('📡 Received job update:', jobId, update)
+        console.log('🎉 CALLBACK TRIGGERED! Received job update:', jobId, update)
         console.log('📡 Full update object:', JSON.stringify(update, null, 2))
         
         // Update both state AND ref immediately to avoid timing issues
@@ -560,6 +561,10 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
 
         {/* Render pending jobs with WebSocket updates */}
         {Array.from(pendingJobs.entries()).map(([tempId, pendingJob]) => {
+          // Debug jobUpdates map
+          console.log('🗺️ Current jobUpdates map:', Array.from(jobUpdates.entries()))
+          console.log('🔍 Looking for jobId:', pendingJob.realJobId)
+          
           const webSocketData = pendingJob.realJobId ? jobUpdates.get(pendingJob.realJobId) : null
           const fileName = pendingJob.file.name
           const fileSize = pendingJob.file.size
@@ -792,16 +797,29 @@ export function BullMQQueue({ onViewProject }: BullMQQueueProps = {}) {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-purple-600 dark:text-purple-400">
+                        {(() => {
+                          // Debug logging
+                          if (status === 'processing') {
+                            console.log('🎬 Rendering status - webSocketData:', webSocketData)
+                            console.log('🎬 Progress value:', webSocketData?.progress)
+                            console.log('🎬 Message value:', webSocketData?.message)
+                          }
+                          return null
+                        })()}
                         {status === 'uploading' && 'Uploading to server'}
                         {status === 'waiting' && 'Waiting in queue'}
                         {status === 'analyzing' && 'LLM analyzing content'}
                         {status === 'processing' && webSocketData?.progress !== undefined && (
                           <>
-                            {webSocketData.progress === 0 && 'Initializing job'}
-                            {webSocketData.progress === 10 && 'Transcribing audio'}
-                            {webSocketData.progress > 10 && webSocketData.progress < 60 && 'Transcribing audio'}
-                            {webSocketData.progress >= 60 && webSocketData.progress < 90 && 'Analyzing content'}
-                            {webSocketData.progress >= 90 && webSocketData.progress < 100 && 'Creating segments'}
+                            {webSocketData.message || (
+                              <>
+                                {webSocketData.progress === 0 && 'Initializing job'}
+                                {webSocketData.progress === 10 && 'Transcribing audio with Whisper large-v3 (this may take 5-15 minutes)'}
+                                {webSocketData.progress > 10 && webSocketData.progress < 60 && 'Transcribing audio with Whisper large-v3'}
+                                {webSocketData.progress >= 60 && webSocketData.progress < 90 && 'Analyzing content with LLM'}
+                                {webSocketData.progress >= 90 && webSocketData.progress < 100 && 'Creating segments'}
+                              </>
+                            )}
                           </>
                         )}
                         {status === 'processing' && webSocketData?.progress === undefined && 'Processing'}

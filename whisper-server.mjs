@@ -36,7 +36,7 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: 'No audio file provided' })
     }
 
-    const { language = 'en', model = 'base', outputFormat = 'json' } = req.body
+    const { language = 'en', model = 'large-v3', outputFormat = 'json' } = req.body
     const uploadedFilePath = req.file.path
     console.log('🔧 Processing with language:', language, 'model:', model)
     console.log('📁 Uploaded file:', uploadedFilePath, 'size:', req.file.size, 'bytes')
