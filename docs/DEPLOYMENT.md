@@ -53,7 +53,7 @@ node whisper-server.mjs
 
 | Environment | Frontend | Backend | Process Manager | Use Case |# Open http://your-server-ip:5001
 
-|-------------|----------|---------|----------------|----------|```
+|-------------|----------|---------|----------------|----------|
 
 | **Development** | :5001 | :8080 | Manual (foreground) | Local coding/testing |
 
