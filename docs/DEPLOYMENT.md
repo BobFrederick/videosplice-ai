@@ -1,16 +1,17 @@
-# Deployment Guide# Deployment Guide
-
+# Deployment Guide
 
 
 This guide covers deploying Splice for development and production use.This guide covers deploying Splice for production use and internal testing.
 
 
 
-## Quick Start## Deployment Options
+## Quick Start
+## Deployment Options
 
 
 
-### Development Mode### Option 1: Docker Compose (Recommended for Testing)
+### Development Mode
+### Option 1: Docker Compose (Recommended for Testing)
 
 ```bash
 
