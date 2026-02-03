@@ -65,7 +65,7 @@ Both environments share the same Redis, Ollama, and Whisper services.# Update do
 
 # Change "5001:80" to "0.0.0.0:5001:80"
 
----```
+```
 
 
 
