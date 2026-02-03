@@ -69,7 +69,8 @@ Both environments share the same Redis, Ollama, and Whisper services.# Update do
 
 
 
-## Production Deployment### Option 2: PM2 Process Manager (Production)
+## Production Deployment
+### Option 2: PM2 Process Manager (Production)
 
 
 
