@@ -51,6 +51,7 @@ function App() {
           name: job.data?.fileName || job.returnvalue?.fileName || existingProject.name,
           segments: job.returnvalue.segments || [],
           transcript: job.returnvalue.transcript || existingProject.transcript,
+          whisperSegments: job.returnvalue.whisperSegments || existingProject.whisperSegments,
           videoUrl: `${API_URL}/video/${job.id}`,
           duration: job.returnvalue.duration || job.data?.duration || existingProject.duration
         }
@@ -106,6 +107,7 @@ function App() {
           jobId: job.id,
           segments: jobResults?.segments || [],
           transcript: jobResults?.transcript || 'Processing results not available',
+          whisperSegments: jobResults?.whisperSegments || [],
           videoUrl: `${API_URL}/video/${job.id}`,
           duration: jobResults?.duration || job.data?.duration || 0,
           exportedSegments: jobResults?.exportedSegments || []

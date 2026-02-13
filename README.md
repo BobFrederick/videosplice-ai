@@ -13,6 +13,7 @@ Splice automatically analyzes your videos and creates intelligent chapter segmen
   - **OpenAI** - GPT-4, GPT-3.5, configurable via Settings
   - **Anthropic (Claude)** - Claude 3 models, configurable via Settings
 - ✂️ **Interactive Timeline** - Visual editor with drag-to-adjust segments
+- 📝 **Text-Based Video Editing** - Select transcript text to create, split, or modify segments with precise timestamp mapping
 - 📥 **Easy Export** - Download trimmed videos with matching subtitle files
 - 🎨 **Modern Interface** - Clean, dark-mode ready UI
 - 🔒 **Privacy Focused** - Local-first with optional cloud providers
@@ -157,6 +158,22 @@ Splice supports multiple AI providers for segment generation. Configure in **Set
 - **Drag boundary** - Adjust segment timing
 - **Hover** - View timestamp
 
+### Text-Based Video Editing
+
+When a video has been transcribed with Whisper or uploaded with a VTT file, you can edit segments directly from the transcript:
+
+- **Select text** - Click and drag to select transcript text; see timestamp range
+- **Delete/Backspace** - Press Delete or Backspace to split or trim segments at selection boundaries  
+- **Right-click** - Context menu to create new segment from selection or copy timestamp
+- **Timestamps** - Text selections are automatically mapped to precise video timestamps
+
+This feature enables intuitive text-based editing where you can:
+1. Select the text you want to become a new segment
+2. Right-click and choose "Create Segment from Selection"
+3. Or delete unwanted text to split existing segments
+
+The transcript maintains tight synchronization with video timestamps for frame-accurate editing.
+
 ## 🛠️ Technology Stack
 
 **Frontend**
@@ -205,6 +222,7 @@ splice/
 
 - [Deployment Guide](./docs/DEPLOYMENT.md) - Production deployment and PM2 setup
 - [System Architecture](./docs/ARCHITECTURE.md) - Technical overview and data flow
+- [Text-Based Editing](./docs/TEXT_BASED_EDITING.md) - Complete guide to text-based video editing
 - [Security](./docs/SECURITY.md) - Security considerations
 
 ## 🐛 Troubleshooting

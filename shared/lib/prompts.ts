@@ -28,8 +28,15 @@ export function createDefaultPrompt(
   fileName?: string,
   customInstructions?: string
 ): string {
-  // If no whisperSegments, use timestamp-based format
-  if (!whisperSegments || whisperSegments.length === 0) {
+  // Detect if we have word-level segments (typically > 100 segments for a short video)
+  // or if segments are very short (< 3 seconds average)
+  const avgSegmentDuration = whisperSegments.length > 0
+    ? whisperSegments.reduce((sum, seg) => sum + (seg.end - seg.start), 0) / whisperSegments.length
+    : 0
+  const isWordLevel = whisperSegments.length > 100 || avgSegmentDuration < 3
+  
+  // If no whisperSegments OR if they're word-level (too granular for LLM), use transcript-only format
+  if (!whisperSegments || whisperSegments.length === 0 || isWordLevel) {
     return `You are an expert video content analyzer. Your job is to create meaningful, logical segments from a video transcript.
 
 **Video Information:**

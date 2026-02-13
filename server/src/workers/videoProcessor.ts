@@ -44,8 +44,9 @@ class VideoProcessor {
       {
         connection: this.redis,
         concurrency: 1, // Process one job at a time to protect GPU
-        maxStalledCount: 1,
-        stalledInterval: 30000,
+        maxStalledCount: 3, // Allow more retries for stalled jobs
+        stalledInterval: 300000, // Check for stalled jobs every 5 minutes (large-v3 needs time)
+        lockDuration: 3600000, // Lock job for 60 minutes (large-v3 can be very slow)
       }
     )
 
@@ -138,7 +139,7 @@ class VideoProcessor {
       wsService.sendJobUpdate(id, {
         status: 'transcribing',
         progress: 10,
-        message: vttFilePath ? 'Reading VTT transcription...' : 'Transcribing audio...'
+        message: vttFilePath ? 'Reading VTT transcription...' : 'Transcribing audio with Whisper large-v3 (this may take 5-15 minutes)...'
       })
 
       const transcriptionResult = await this.transcribeVideo(filePath, customTranscript, vttFilePath)
@@ -153,7 +154,7 @@ class VideoProcessor {
       wsService.sendJobUpdate(id, {
         status: 'transcribing',
         progress: 50,
-        message: 'Transcription completed'
+        message: 'Transcription completed successfully'
       })
 
       // Step 2: LLM Analysis (50-90%)
@@ -294,7 +295,7 @@ class VideoProcessor {
     const formData = new FormData()
     formData.append('audio', fileBlob, path.basename(filePath))
     formData.append('language', 'en')
-    formData.append('model', 'base')
+    formData.append('model', 'large-v3')
     formData.append('outputFormat', 'json')
 
     // Call Whisper service with correct endpoint (use environment variable or default to 3001)
